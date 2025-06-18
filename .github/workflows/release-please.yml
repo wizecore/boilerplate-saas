@@ -12,6 +12,8 @@ name: release-please
 jobs:
   release-please:
     runs-on: ubuntu-latest
+    # Do not run on template repo https://github.com/wizecore/boilerplate-saas
+    if: ${{ !contains(github.repository, 'boilerplate') }}
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v4
