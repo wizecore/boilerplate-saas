@@ -45,7 +45,6 @@ export const MarketingShell = ({
         <FooterNav />
 
         <div className="text-center text-sm text-muted-foreground mb-4">
-          <p>Built with ❤️ in Helsinki, Finland.</p>
           <p>
             &copy; {process.env.NEXT_PUBLIC_YEAR}
             {new Date().getFullYear() !== parseInt(process.env.NEXT_PUBLIC_YEAR ?? "2025")
