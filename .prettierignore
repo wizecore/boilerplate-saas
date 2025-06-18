@@ -1,0 +1,7 @@
+.build
+data
+components/ui
+.next
+.env*
+CHANGELOG.md
+

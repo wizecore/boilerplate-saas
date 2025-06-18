@@ -1,0 +1,43 @@
+on:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: write
+  pull-requests: write
+
+name: release-please
+
+jobs:
+  release-please:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Create release pull request
+        uses: huksley/release-please-action@v9
+        with:
+          # https://github.com/googleapis/release-please-action
+          token: ${{ secrets.RELEASE_PLEASE_TOKEN }}
+          config-file: .release-config.json
+          manifest-file: .release-manifest.json
+          skip-labeling: true
+
+  tag-main:
+    if: "startsWith(github.event.head_commit.message, 'chore(main): release')"
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+          fetch-tags: true
+
+      - name: Tag main
+        run: |
+          VERSION=$(echo "${{ github.event.head_commit.message }}" | sed -e "s/.*release \([0-9]*\.[0-9]*\.[0-9]*\).*/\1/")
+          echo "VERSION: $VERSION"
+          git tag "v$VERSION"
+          git push origin "v$VERSION"

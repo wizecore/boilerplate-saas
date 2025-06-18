@@ -1,0 +1,70 @@
+{
+  "plugins": [
+    "@typescript-eslint",
+    "unused-imports",
+    "@stylistic/eslint-plugin",
+    "local-rules"
+  ],
+  "extends": [
+    "next/core-web-vitals",
+    "plugin:@typescript-eslint/recommended",
+    "plugin:prettier/recommended",
+    "plugin:react/jsx-runtime",
+    "plugin:react-hooks/recommended"
+  ],
+  "env": {
+    "browser": true,
+    "es2020": true
+  },
+  "parserOptions": {
+    // https://typescript-eslint.io/packages/parser#warnonunsupportedtypescriptversion
+    "warnOnUnsupportedTypeScriptVersion": true,
+    "ecmaVersion": 2020
+  },
+  "rules": {
+    "max-len": [
+      "error",
+      {
+        "code": 95,
+        "ignoreComments": true,
+        "ignoreStrings": true,
+        "ignoreTemplateLiterals": true
+      }
+    ],
+    // Disable nag to use next/image
+    "@next/next/no-img-element": "off",
+    "no-unused-vars": "off",
+    "@typescript-eslint/no-unused-vars": "off",
+    "@typescript-eslint/no-empty-object-type": "off",
+    "unused-imports/no-unused-imports": "error",
+    "unused-imports/no-unused-vars": [
+      "warn",
+      {
+        "vars": "all",
+        "varsIgnorePattern": "^_",
+        "args": "after-used",
+        "argsIgnorePattern": "^_",
+        "caughtErrorsIgnorePattern": "^_"
+      }
+    ],
+    "no-unused-expressions": "off",
+    "@typescript-eslint/no-unused-expressions": [
+      "error",
+      {
+        "allowShortCircuit": true // handler && handler()
+      }
+    ],
+    "no-console": "error",
+    // Avoids conflict with prettier, for const s = '{ a: "dsadas" }'
+    "@stylistic/quotes": ["error", "double", { "avoidEscape": true }],
+    "local-rules/disallow-prisma-client-import": "error",
+    "local-rules/file-naming-convention": "error",
+    "no-restricted-globals": [
+      "error",
+      "event",
+      // Vite does not support global, so we use globalThis instead
+      "global"
+    ],
+    "curly": ["error", "all"]
+  }
+}

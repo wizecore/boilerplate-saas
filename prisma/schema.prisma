@@ -1,0 +1,162 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider        = "prisma-client-js"
+  binaryTargets   = ["native", "debian-openssl-3.0.x"]
+  previewFeatures = ["omitApi"]
+}
+
+generator json {
+  provider = "prisma-json-types-generator"
+}
+
+datasource db {
+  provider     = "postgresql"
+  url          = env("DATABASE_URL")
+  //directUrl    = env("DATABASE_DIRECT_URL")
+  relationMode = "foreignKeys"
+}
+
+model Account {
+  id                String   @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String?  @db.Text /// @encrypted
+  access_token      String?  @db.Text /// @encrypted
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String?  @db.Text /// @encrypted
+  session_state     String?
+  createdAt         DateTime @default(now()) @map(name: "created_at")
+  updatedAt         DateTime @default(now()) @map(name: "updated_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+  @@index([userId])
+  @@map(name: "accounts")
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map(name: "sessions")
+}
+
+model Tenant {
+  id        String   @id @default(cuid())
+  name      String   @unique
+  createdAt DateTime @default(now()) @map(name: "created_at")
+  updatedAt DateTime @default(now()) @map(name: "updated_at")
+  planId    String?  @map(name: "plan_id")
+  status    String?  @default("active") @map(name: "status")
+
+  // User who initiated the subscription
+  stripeUserId            String?   @map(name: "stripe_user_id")
+  stripeCustomerId        String?   @unique @map(name: "stripe_customer_id")
+  stripeSubscriptionId    String?   @unique @map(name: "stripe_subscription_id")
+  stripePriceId           String?   @map(name: "stripe_price_id")
+  stripeCurrentPeriodEnd  DateTime? @map(name: "stripe_current_period_end")
+  stripeCancelAtPeriodEnd Boolean?  @map(name: "stripe_cancel_at_period_end")
+  stripeCancelAt          DateTime? @map(name: "stripe_cancel_at")
+  stripeCancelReason      String?   @map(name: "stripe_cancel_reason")
+
+  segmentId String? @map(name: "segment_id")
+
+  Users User[]
+  Tasks Task[]
+
+  @@index([stripeSubscriptionId])
+  @@index([stripeCustomerId])
+  @@map(name: "tenants")
+}
+
+model User {
+  id            String    @id @default(cuid())
+  name          String
+  email         String    @unique
+  emailVerified DateTime? @map(name: "emailVerified")
+  image         String?
+  createdAt     DateTime  @default(now()) @map(name: "created_at")
+  updatedAt     DateTime  @default(now()) @map(name: "updated_at")
+  tenantId      String    @map(name: "tenant_id")
+  templates     String?   @map(name: "templates")
+  flags         String[]  @map(name: "flags")
+  lastLoginAt   DateTime? @map(name: "last_login_at")
+  attributes    Json?     @map(name: "attributes") /// [PrismaUserAttributes]
+
+  accounts Account[]
+  sessions Session[]
+  tasks    Task[]
+  tenant   Tenant    @relation(fields: [tenantId], references: [id])
+
+  @@index([tenantId])
+  @@map(name: "users")
+}
+
+model Task {
+  id                 String    @id @default(cuid())
+  type               String /// [PrismaTaskType]
+  status             String? /// [PrismaTaskStatus]
+  createdAt          DateTime  @default(now()) @map(name: "created_at")
+  updatedAt          DateTime  @default(now()) @map(name: "updated_at")
+  args               Json?     @map(name: "args") /// [PrismaTaskArgs]
+  executing          Boolean?  @map(name: "executing")
+  executionStartedAt DateTime? @map(name: "execution_started_at")
+  executedAt         DateTime? @map(name: "executed_at")
+  result             Json?     @map(name: "result")
+  userId             String?   @map(name: "user_id")
+  tenantId           String?   @map(name: "tenant_id")
+  nextTaskId         String?   @map(name: "next_task_id")
+  interval           Int?      @map(name: "interval")
+  nextExecuteAt      DateTime? @map(name: "next_execute_at")
+
+  user   User?     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  logs   Journal[]
+  tenant Tenant?   @relation(fields: [tenantId], references: [id])
+
+  @@index([userId])
+  @@index([tenantId])
+  @@map(name: "tasks")
+}
+
+model Journal {
+  id        String   @id @default(cuid())
+  hostId    String?  @map(name: "host_id")
+  appId     String?  @map(name: "app_id")
+  taskId    String?  @map(name: "task_id")
+  // level (info, warn, error) or "<health:service>"
+  type      String
+  message   String
+  createdAt DateTime @default(now()) @map(name: "created_at")
+  tenantId  String?  @map(name: "tenant_id")
+  // file name
+  path      String?  @map(name: "path")
+  /// [PrismaJournalHealth]
+  health    Json?    @map(name: "health")
+
+  task Task? @relation(fields: [taskId], references: [id], onDelete: Cascade)
+
+  @@index([hostId, type, path])
+  @@index([appId])
+  @@index([taskId])
+  @@map(name: "logs")
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+  @@map(name: "verification_tokens")
+}
