@@ -1,6 +1,7 @@
 import nextJest from "next/jest.js";
 import { pathsToModuleNameMapper } from "ts-jest";
-import { compilerOptions } from "./tsconfig.json";
+// @ts-expect-error No need for import assertions here
+import { compilerOptions } from "./tsconfig.json" assert { type: "json" };
 import { Config } from "jest";
 
 const createJestConfig = nextJest({ dir: "./" });
