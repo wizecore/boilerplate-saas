@@ -21,16 +21,23 @@ class Level {
   }
 
   toString() {
-    return new Date().toISOString() + (this.level === "INFO" ? "" : " " + this.level);
+    return new Date().toISOString() + " " + this.level;
   }
 
   [Symbol.toPrimitive](hint: string) {
     if (hint === "string") {
-      return new Date().toISOString() + (this.level === "INFO" ? "" : " " + this.level);
+      return new Date().toISOString() + " " + this.level;
     }
     return undefined;
   }
 }
+
+/** Do not import directly in the hybrid browser/nodejs code. Use as an instance which returns requestId via toString(). */
+const requestTracker = (
+  globalThis as unknown as {
+    __requestTracker: object;
+  }
+).__requestTracker;
 
 /**
  * Universal logger based on console. Also supports logger.verbose()
@@ -51,11 +58,19 @@ const logger: Logger = {
   isVerbose: process.env.NEXT_PUBLIC_LOG_VERBOSE === "1" ? true : false,
   verbose:
     process.env.NEXT_PUBLIC_LOG_VERBOSE === "1"
-      ? console.info.bind(console.info, "%s", new Level("DEBUG"))
+      ? requestTracker
+        ? console.info.bind(console.info, "%s%s", new Level("DEBUG"), requestTracker)
+        : console.info.bind(console.info, "%s", new Level("DEBUG"))
       : () => {},
-  info: console.info.bind(console.info, "%s", new Level("INFO")),
-  warn: console.warn.bind(console.warn, "%s", new Level("WARN")),
-  error: console.error.bind(console.error, "%s", new Level("ERROR"))
+  info: requestTracker
+    ? console.info.bind(console.info, "%s%s", new Level("INFO"), requestTracker)
+    : console.info.bind(console.info, "%s", new Level("INFO")),
+  warn: requestTracker
+    ? console.warn.bind(console.warn, "%s%s", new Level("WARN"), requestTracker)
+    : console.warn.bind(console.warn, "%s", new Level("WARN")),
+  error: requestTracker
+    ? console.error.bind(console.error, "%s%s", new Level("ERROR"), requestTracker)
+    : console.error.bind(console.error, "%s", new Level("ERROR"))
 };
 
 export default logger;

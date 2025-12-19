@@ -45,10 +45,10 @@ brew install mailhog
 Go to Github repo https://github.com/wizecore/boilerplate-saas
 and press "Use this template".
 
-   ```bash
-   git clone https://github.com/<user>/boilerplate-saas.git
-   cd boilerplate-saas
-   ```
+```bash
+git clone https://github.com/<user>/boilerplate-saas.git
+cd boilerplate-saas
+```
 
 2. Install all packages via homebrew (MacOS)
 
@@ -57,22 +57,27 @@ and press "Use this template".
    ```
 
 3. **Install packages**
+
    ```bash
    npm install
    ```
 
 4. **Set up environment variables**
+
    ```bash
    cp .env.example .env.development
    ```
+
    Edit `.env.development` and fill in your configuration values.
 
 5. **Initialize PostgreSQL database**
+
    ```bash
    npm run prepg
    ```
 
 6. **Start the development server**
+
    ```bash
    npm run dev
    ```
@@ -83,12 +88,12 @@ and press "Use this template".
    ```
 
 This will start:
+
 - Next.js dev server on http://localhost:3000
 - PostgreSQL database
 - Redis server
 - MinIO S3-compatible storage on http://localhost:9000
 - Mailpit email testing server on http://localhost:8026
-
 
 ## 🛠️ Available Scripts
 
@@ -144,6 +149,7 @@ npm run migrate
 ```
 
 This will:
+
 1. Create a new migration
 2. Apply it to your database
 3. Regenerate the Prisma client
@@ -165,6 +171,7 @@ npm run test:watch
 ## 🚢 Production Deployment
 
 1. Build the application:
+
    ```bash
    npm run build
    ```

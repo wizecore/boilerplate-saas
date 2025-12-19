@@ -12,21 +12,30 @@ const cache = process.env.AWS_EXECUTION_ENV
   : // eslint-disable-next-line @typescript-eslint/no-explicit-any
     (((globalThis as any).jest ? globalThis : Redis) as unknown as CacheHolder);
 
+export const createRedisConnection = (lazy?: boolean) => {
+  const url = process.env.REDIS_URL;
+  if (!url) {
+    return undefined;
+  }
+
+  const redis = new Redis(
+    process.env.REDIS_TOKEN ? url.replace("$REDIS_TOKEN", process.env.REDIS_TOKEN) : url,
+    {
+      enableOfflineQueue: true,
+      commandTimeout: 3000,
+      lazyConnect: lazy ?? true
+    }
+  );
+
+  return redis as RedisClient;
+};
+
 export const getRedis = () => {
   if (!cache.__redis) {
-    const url = process.env.REDIS_URL;
-    if (!url) {
+    const redis = createRedisConnection();
+    if (!redis) {
       return undefined;
     }
-
-    const redis = new Redis(
-      process.env.REDIS_TOKEN ? url.replace("$REDIS_TOKEN", process.env.REDIS_TOKEN) : url,
-      {
-        enableOfflineQueue: true,
-        commandTimeout: 3000,
-        lazyConnect: true
-      }
-    );
 
     logger.info("Connecting to Redis", process.env.REDIS_URL);
     redis.connect();
@@ -89,13 +98,13 @@ export interface ICache {
     key: string,
     def: () => Promise<T>,
     timeoutMs?: number
-  ) => Promise<T | null>;
+  ) => Promise<T>;
 
   /** Sets value, if data is null, removes value */
   set: <T extends Value>(key: string, data: T, timeoutMs?: number) => Promise<boolean>;
 }
 
-const createRedisCache = (redis: RedisClient): ICache => ({
+export const createRedisCache = (redis: RedisClient): ICache => ({
   redis: getRedis(),
   get: async <T extends Value>(key: string): Promise<T | null> => {
     const reply = await redis.get(CacheUtil.prefix + key);
@@ -116,7 +125,7 @@ const createRedisCache = (redis: RedisClient): ICache => ({
     key: string,
     def: () => Promise<T>,
     timeoutMs?: number
-  ): Promise<T | null> => {
+  ): Promise<T> => {
     const reply = await redis.get(CacheUtil.prefix + key);
     if (reply === null) {
       if (logger.isVerbose) {
@@ -175,8 +184,14 @@ export const createNoneCache = (): ICache => ({
   set: <T extends Value>(_key: string, _data: T) => Promise.resolve(false)
 });
 
-export const getCache = (): ICache =>
-  getRedis() ? createRedisCache(getRedis()!) : createNoneCache();
+export const getCache = (): ICache => {
+  const redis = getRedis();
+  if (redis) {
+    return createRedisCache(redis);
+  } else {
+    return createNoneCache();
+  }
+};
 
 // Implementation of fetch with caching
 export const fetchCached = async <T>(

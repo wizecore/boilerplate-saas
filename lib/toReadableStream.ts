@@ -1,7 +1,7 @@
-import { ReadableStream, ReadableStreamDefaultReader } from "stream/web";
+import { ReadableStream, ReadableStreamDefaultReader } from "node:stream/web";
 
 export const toReadableStream = (stream: ReadableStreamDefaultReader<Uint8Array>) => {
-  const readableStream = new ReadableStream({
+  const readableStream = new ReadableStream<Uint8Array>({
     start(controller) {
       function push() {
         stream.read().then(({ done, value }) => {
@@ -16,5 +16,6 @@ export const toReadableStream = (stream: ReadableStreamDefaultReader<Uint8Array>
       push();
     }
   });
+
   return readableStream;
 };
