@@ -20,7 +20,7 @@ const classNames = cva(
         false: "hover:text-muted-foreground"
       },
       animations: {
-        true: "hover:scale-110 active:scale-90 active:border-1 active:border-primary/70 transition-transform",
+        true: "hover:scale-110 active:scale-90 active:border active:border-primary/70 transition-transform",
         false: "transition-none"
       }
     },

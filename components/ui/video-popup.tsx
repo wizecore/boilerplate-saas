@@ -127,7 +127,7 @@ export default function           VideoPopup({
         <div className="absolute inset-0 scale-50 md:scale-90 flex items-center justify-center rounded-md transition-all duration-200 ease-out">
           <div className="flex size-28 items-center justify-center rounded-full bg-primary/10 backdrop-blur-md brightness-[0.7] group-hover:brightness-100">
             <div
-              className="relative flex size-24 items-center justify-center rounded-full bg-gradient-to-b from-blue-600 to-blue-900 shadow-md transition-all duration-200 ease-out"
+              className="relative flex size-24 items-center justify-center rounded-full bg-linear-to-b from-blue-600 to-blue-900 shadow-md transition-all duration-200 ease-out"
             >
               <Play
                 className="size-8 fill-white text-white transition-transform duration-200 ease-out"
@@ -159,7 +159,7 @@ export default function           VideoPopup({
                 className="absolute -top-12 right-0 rounded-md bg-neutral-900/50 p-2 text-xl text-white ring-1 backdrop-blur-md dark:bg-neutral-100/50 dark:text-black">
                 <XIcon className="size-3 md:size-5" />
               </motion.button>
-              <div className="relative isolate z-[1] size-full overflow-hidden rounded-md border border-foreground/20">
+              <div className="relative isolate z-1 size-full overflow-hidden rounded-md border border-foreground/20">
                 <iframe
                   onKeyDown={e => {
                     if (e.key === "Escape") {
