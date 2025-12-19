@@ -4,69 +4,21 @@ A modern, production-ready SaaS boilerplate built with Next.js 15, React 19, Typ
 
 ## ✨ Features
 
-- **Next.js 15.4** with App Router and React 19
-- **Authentication** with NextAuth.js (Email, Google OAuth support)
+- **Next.js 15** with Pages Router and React 19
+- **Authentication** with NextAuth.js (Email, Google OAuth, Github OAuth support)
 - **Database** with Prisma ORM and PostgreSQL
-- **Email** with Nodemailer and React Email
+- **Email** with Nodemailer, React Email and Mailpit
 - **Storage** with AWS S3 (compatible with MinIO for local development)
 - **Queue System** with BullMQ and Redis
 - **UI Components** with Radix UI and Tailwind CSS
 - **Form Handling** with React Hook Form and Zod validation
 - **Code Quality** with ESLint, Prettier, and Husky
 - **Testing** with Jest and TypeScript
-- **Monitoring** with Plausible Analytics (optional)
+- **Analytics** with Plausible Analytics (optional)
 
 ## 🚀 Quick Start
 
-### Prerequisites
-
-- Node.js 22 or later
-- PostgreSQL 14+
-- Redis
-- MinIO (for local S3-compatible storage)
-
-### Installation
-
-1. **Clone the repository**
-   ```bash
-   git clone https://github.com/wizecore/boilerplate-saas.git
-   cd boilerplate-saas
-   ```
-
-2. **Install dependencies**
-   ```bash
-   npm install
-   ```
-
-3. **Set up environment variables**
-   ```bash
-   cp .env.example .env.development
-   ```
-   Edit `.env.development` and fill in your configuration values.
-
-4. **Initialize PostgreSQL database**
-   ```bash
-   npm run prepg
-   ```
-
-5. **Run database migrations**
-   ```bash
-   npm run migrate
-   ```
-
-6. **Start the development server**
-   ```bash
-   npm run dev
-   ```
-
-   This will start:
-   - Next.js dev server on http://localhost:3000
-   - PostgreSQL database
-   - Redis server
-   - MinIO S3-compatible storage on http://localhost:9000
-   - MailHog email testing server on http://localhost:1225
-
-## 📦 Development Setup (macOS)
+## 📦 Operating System Setup (macOS)
 
 For macOS users with Homebrew:
 
@@ -85,6 +37,58 @@ brew install minio
 # Optional: Install MailHog for email testing
 brew install mailhog
 ```
+
+### 🚀 Getting started
+
+1. **Fork the repository**
+
+Go to Github repo https://github.com/wizecore/boilerplate-saas
+and press "Use this template".
+
+   ```bash
+   git clone https://github.com/<user>/boilerplate-saas.git
+   cd boilerplate-saas
+   ```
+
+2. Install all packages via homebrew (MacOS)
+
+   ```bash
+   brew install postgresql@14 redis minio mailpit
+   ```
+
+3. **Install packages**
+   ```bash
+   npm install
+   ```
+
+4. **Set up environment variables**
+   ```bash
+   cp .env.example .env.development
+   ```
+   Edit `.env.development` and fill in your configuration values.
+
+5. **Initialize PostgreSQL database**
+   ```bash
+   npm run prepg
+   ```
+
+6. **Start the development server**
+   ```bash
+   npm run dev
+   ```
+
+7. **Run database migrations** (in separate terminal)
+   ```bash
+   npm run migrate
+   ```
+
+This will start:
+- Next.js dev server on http://localhost:3000
+- PostgreSQL database
+- Redis server
+- MinIO S3-compatible storage on http://localhost:9000
+- Mailpit email testing server on http://localhost:8026
+
 
 ## 🛠️ Available Scripts
 
@@ -107,13 +111,14 @@ brew install mailhog
 ## 📁 Project Structure
 
 ```
-├── app/                 # Next.js App Router pages and API routes
 ├── components/          # React components
-├── lib/                 # Utility functions and helpers
+├── lib/                 # Utility functions and backend
+├── pages/               # Page router pages and api routes
 ├── prisma/              # Database schema and migrations
 ├── public/              # Static assets
 ├── types/               # TypeScript type definitions
 ├── .env.example         # Environment variables template
+├── .env.development     # Local development config (never add this to git!)
 ├── next.config.js       # Next.js configuration
 ├── tailwind.config.js   # Tailwind CSS configuration
 └── tsconfig.json        # TypeScript configuration
@@ -170,10 +175,6 @@ npm run test:watch
    ```bash
    npm run start
    ```
-
-## 📝 License
-
-Private
 
 ## 🤝 Contributing
 

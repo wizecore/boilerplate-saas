@@ -14,7 +14,7 @@ const modulesToTransform = [
   "universal-github-app-jwt"
 ];
 
-const customJestConfig: Config = {
+const customJestConfig = {
   preset: "ts-jest",
   rootDir: "./",
   testPathIgnorePatterns: [
@@ -33,7 +33,7 @@ const customJestConfig: Config = {
   passWithNoTests: true,
   clearMocks: true,
   testTimeout: 20000
-};
+} satisfies Config;
 
 const exportConfig = async () => {
   const config = await createJestConfig(customJestConfig)();
