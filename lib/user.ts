@@ -60,7 +60,12 @@ export const getUserById = async (
     return null;
   }
 
-  return user ? omit(user, "tenant") : null;
+  return user
+    ? (omit(user, "tenant") as Pick<
+        User,
+        "name" | "email" | "id" | "tenantId" | "image" | "flags"
+      >)
+    : null;
 };
 
 export const getTenantById = async (

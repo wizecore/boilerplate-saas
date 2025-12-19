@@ -27,7 +27,8 @@ const createPrisma = () => {
     log: ["info"]
   });
 
-  prisma.$use(async (params, next) => {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  prisma.$use(async (params: any, next: any) => {
     const before = Date.now();
     const result = await next(params);
     const after = Date.now();

@@ -1,13 +1,64 @@
 import { LucideIcon } from "lucide-react";
 import { z } from "zod";
 
-// eslint-disable-next-line local-rules/disallow-prisma-client-import
-import {
-  Task as PrismaTask,
-  Journal as PrismaJournal,
-  Tenant as PrismaTenant,
-  User as PrismaUser
-} from "@prisma/client";
+// Note: Temporarily defining types manually due to Prisma client generation issues
+// These should be imported from @prisma/client once the client is properly generated
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+type JsonValue = any;
+
+type PrismaTask = {
+  id: string;
+  type: string;
+  status: string | null;
+  createdAt: Date;
+  updatedAt: Date;
+  args: JsonValue;
+  executing: boolean | null;
+  executionStartedAt: Date | null;
+  executedAt: Date | null;
+  result: JsonValue;
+  userId: string | null;
+  tenantId: string | null;
+  nextTaskId: string | null;
+  interval: number | null;
+  nextExecuteAt: Date | null;
+};
+
+type PrismaJournal = {
+  id: string;
+  hostId: string | null;
+  appId: string | null;
+  level: string | null;
+  message: string | null;
+  details: JsonValue;
+  createdAt: Date;
+  userId: string | null;
+  tenantId: string | null;
+  taskId: string | null;
+};
+
+type PrismaTenant = {
+  id: string;
+  name: string;
+  status: string;
+  planId: string | null;
+  createdAt: Date;
+  updatedAt: Date;
+};
+
+type PrismaUser = {
+  id: string;
+  name: string | null;
+  email: string | null;
+  emailVerified: Date | null;
+  image: string | null;
+  tenantId: string | null;
+  flags: JsonValue;
+  attributes: JsonValue;
+  createdAt: Date;
+  updatedAt: Date;
+};
 
 declare module "next" {
   interface NextApiRequest {
