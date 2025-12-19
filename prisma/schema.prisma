@@ -13,6 +13,7 @@ generator json {
 datasource db {
   provider     = "postgresql"
   relationMode = "foreignKeys"
+  url          = env("DATABASE_URL")
 }
 
 model Account {
