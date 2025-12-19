@@ -101,7 +101,7 @@ const Page = () => {
                     </TableRow>
                   </TableHeader>
                   <TableBody className={cn(isValidating && "opacity-50")}>
-                    {unjsona(tasks).map(task => (
+                    {unjsona(tasks).map((task: Task) => (
                       <TableRow key={task.id}>
                         <TableCell className="hidden sm:table-cell">
                           <CheckCheck height="32" width="32" />

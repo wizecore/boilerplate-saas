@@ -26,6 +26,7 @@ export const getCompute = async (): Promise<Compute> => {
   });
 
   const tick = async () => {
+    // DO NOT REMOVE THIS, it's used to ensure that the worker is running
     await worker.isRunning();
     const task = await prisma.task.create({
       data: {
@@ -44,6 +45,9 @@ export const getCompute = async (): Promise<Compute> => {
     prisma,
     cache: await getCache(),
     queue: async (task: Task, delayMs?: number) => {
+      if (task.status !== "queued") {
+        throw new Error("Task is not queued");
+      }
       queue.add(task.type, task, {
         delay: delayMs
       });

@@ -7,8 +7,8 @@ import { useEffect } from "react";
  * const matrixRef = useRef<HTMLDivElement>(null);
  * useMatrixEffect(matrixRef);
  *
- * <div ref={matrixRef} className="relative z-[5]">
- * <div className="relative z-[10]">Overlay content</div>
+ * <div ref={matrixRef} className="relative z-5">
+ * <div className="relative z-10">Overlay content</div>
  * </div>
  */
 export const useMatrixEffect = (ref: React.RefObject<HTMLDivElement>) => {

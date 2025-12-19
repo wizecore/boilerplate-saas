@@ -72,7 +72,7 @@ export const Navbar = () => {
   const currentMenu = getLandingMenu(router.pathname, !!user?.id);
 
   return (
-    <header className="fixed border-b top-0 z-40 w-full bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+    <header className="fixed border-b top-0 z-40 w-full bg-background/95 backdrop-blur supports-backdrop-filter:bg-background/60">
       <NavigationMenu className="mx-auto">
         <NavigationMenuList className="pl-3 pr-2 md:px-4 container h-14 w-screen flex justify-between items-center">
           <NavigationMenuItem>

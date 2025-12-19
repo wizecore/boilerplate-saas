@@ -1,6 +1,9 @@
 import { LucideIcon } from "lucide-react";
 import { z } from "zod";
 
+// Note: Temporarily defining types manually due to Prisma client generation issues
+// These should be imported from @prisma/client once the client is properly generated
+
 // eslint-disable-next-line local-rules/disallow-prisma-client-import
 import {
   Task as PrismaTask,

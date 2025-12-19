@@ -40,7 +40,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   // Check database
   try {
     const start4 = Date.now();
-    await prisma.user.findMany().then(users => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    await prisma.user.findMany().then((users: any[]) => {
       response["db"] = !!users.length;
       response["dbelapsed"] = Date.now() - start4;
     });
