@@ -10,7 +10,9 @@ import {
 import { JSONSafe, UserAttributes } from "@/types";
 import { IncomingHttpHeaders } from "http";
 import { customAlphabet } from "nanoid";
+import { fromError as fromZodError } from "zod-validation-error";
 import randomBytes from "randombytes";
+import { z } from "zod";
 
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
@@ -41,7 +43,7 @@ export const isFileSystemSafe = (name: string) => {
     return false;
   }
 
-  if (n.length > 32) {
+  if (n.length > 64) {
     return false;
   }
 
@@ -49,12 +51,12 @@ export const isFileSystemSafe = (name: string) => {
     return false;
   }
 
-  // Does not start with not a letter or number
-  if (!n.match(/^[a-zA-Z0-9]/)) {
+  // Does not start with a letter
+  if (!n.match(/^[a-zA-Z]/)) {
     return false;
   }
 
-  return n;
+  return true;
 };
 
 /** Periodically run a function until a promise is resolved */
@@ -80,6 +82,7 @@ export const runUntil = async <T>(
     }
     await new Promise(resolve => setTimeout(resolve, sleep));
     if (Date.now() - startTime > timeout) {
+      logger.warn("Execution timeout", timeout, "for", promise);
       throw new Error("Execution timeout");
     }
   } while (done === false);
@@ -135,6 +138,18 @@ export const fetcher = <JSON = unknown>(
     .then(res => res.json() as Promise<JSON>);
 };
 
+export const fetcherTyped =
+  <T>(schema: z.ZodType<T>) =>
+  (input: RequestInfo, init?: RequestInit): Promise<z.output<typeof schema>> => {
+    return fetcher(input, init)
+      .then(schema.parse)
+      .catch(error => {
+        logger.error("Failed to fetch", formatMessage(error));
+        reportError(error);
+        throw error;
+      });
+  };
+
 /** For useSWR("/api/user", fetcherIgnore404) to return just a null instead of an error. */
 export const fetcherIgnore404 = <JSON = unknown>(
   input: RequestInfo,
@@ -144,6 +159,27 @@ export const fetcherIgnore404 = <JSON = unknown>(
     .then(res => okstatus(res, null))
     .then(res => res.json() as Promise<JSON>);
 };
+
+export const nums = (num: number, startAt = 0) => {
+  return new Array(num).fill(0).map((_, i) => startAt + i);
+};
+
+export function formatCompactNumber(value: number) {
+  if (value >= 100 && value < 1000) {
+    return value.toString(); // Keep the number as is if it's in the hundreds
+  } else if (value >= 1000 && value < 1000000) {
+    const val = (value / 1000).toFixed(1);
+    if (val.endsWith(".0")) {
+      return val.slice(0, -2) + "k"; // Convert to 'k' for thousands
+    } else {
+      return val + "k"; // Convert to 'k' for thousands
+    }
+  } else if (value >= 1000000) {
+    return (value / 1000000).toFixed(1) + "M"; // Convert to 'M' for millions
+  } else {
+    return value.toString(); // Optionally handle numbers less than 100 if needed
+  }
+}
 
 export function nFormatter(num?: number | null, digits?: number) {
   if (!num) {
@@ -175,6 +211,30 @@ export function capitalize(str: string) {
   return str.charAt(0).toUpperCase() + str.slice(1);
 }
 
+export function dashedToCamel(str: string) {
+  return str.replace(/-([a-z])/g, (_, letter) => letter.toUpperCase());
+}
+
+/** Convert thisValueIsNice to this Value Is Nice */
+export const camelToSpaced = (str: string) =>
+  str
+    .replace(/([A-Z\/])/g, match => " " + (match === "/" ? "" : match))
+    .replace(/^[-]+/, "")
+    .split(" ")
+    .map(s =>
+      s === "Email"
+        ? "E-mail"
+        : s === "_id"
+          ? "ID"
+          : s === "Id"
+            ? "ID"
+            : s === "Url"
+              ? "URL"
+              : s
+    )
+    .join(" ")
+    .trim();
+
 export const truncate = (str: string, length: number) => {
   if (!str || str.length <= length) {
     return str;
@@ -201,9 +261,10 @@ interface JSONResponse {
   text(): Promise<string>;
 }
 
-interface ErrorResponse {
+interface ErrorResponse extends Record<string, unknown> {
   error?: string;
   message?: string;
+  description?: string;
   status?: number;
   response?: unknown;
 }
@@ -307,6 +368,9 @@ export const inspect = (value: unknown, maxDepth = 3): string => {
   return inspectInternal(value, 0, maxDepth, seen);
 };
 
+/**
+ * Extracts meaningful error message from thrown object or JSON response
+ **/
 export const formatMessage = (obj: unknown): string => {
   const str =
     obj === null || obj === undefined || obj === ""
@@ -316,8 +380,11 @@ export const formatMessage = (obj: unknown): string => {
         : typeof obj === "object"
           ? // { name: "ZodError" }
             "name" in obj && (obj as { name: string }).name === "ZodError"
-            ? "Request failed with validation error"
-            : "message" in obj
+            ? fromZodError(obj).toString()
+            : "message" in obj &&
+                (obj as { message: unknown }).message !== "" &&
+                // Don't use generic message from { message: "[object Object]" }
+                (obj as { message: unknown }).message !== "[object Object]"
               ? // { message: "..." }
                 typeof (obj as { message: unknown }).message === "string"
                 ? (obj as { message: string }).message
@@ -327,13 +394,15 @@ export const formatMessage = (obj: unknown): string => {
                   typeof (obj as { error: unknown }).error === "string"
                   ? (obj as { error: string }).error
                   : formatMessage(obj.error)
-                : inspect(obj)
+                : "payload" in obj
+                  ? formatMessage(obj.payload)
+                  : inspect(obj)
           : inspect(obj);
 
   if (str.startsWith("{") && str.endsWith("}")) {
     try {
       const parsed = JSON.parse(str) as Record<string, unknown>;
-      return formatMessage(parsed.message || parsed.error);
+      return formatMessage(parsed.message || parsed.error || parsed.description);
     } catch (_e) {
       // Don't care
     }
@@ -342,7 +411,7 @@ export const formatMessage = (obj: unknown): string => {
   if (str.startsWith("[") && str.endsWith("]")) {
     try {
       const parsed = JSON.parse(str) as Record<string, unknown>[];
-      return formatMessage(parsed[0]?.message || parsed[0]?.error);
+      return formatMessage(parsed[0]?.message || parsed[0]?.error || parsed[0]?.description);
     } catch (_e) {
       // Don't care
     }
@@ -357,7 +426,6 @@ export const formatMessage = (obj: unknown): string => {
 
 /** Works with ErrorReportProvider to display error */
 const reportError = (message: unknown) => {
-  const str = formatMessage(message);
   const reportError = (
     globalThis as {
       reportError?: (message: string) => void;
@@ -365,21 +433,36 @@ const reportError = (message: unknown) => {
   ).reportError;
 
   if (reportError) {
+    const str = formatMessage(message);
     reportError(str);
-  } else {
-    logger.warn(str);
   }
 };
 
+export class HttpError extends Error {
+  constructor(
+    message: string,
+    public statusCode: StatusErrorCode,
+    public payload?: Record<string, unknown>
+  ) {
+    super(message);
+  }
+
+  toJSON() {
+    return {
+      message: this.message,
+      statusCode: this.statusCode,
+      payload: this.payload
+    };
+  }
+}
+
 /**
  * Checks fetch response and if not ok HTTP response, rejects with error from response.
- *
- * For example:
- * fetch("/url").then(okstatus).then(res => res.json())
  */
 export const okstatus = <T extends JSONResponse>(
   response: T,
-  use404fallback?: unknown /** If 404, return this value instead of rejecting. */
+  use404fallback?: unknown /** If 404, return this value instead of rejecting. */,
+  overrideReportError?: (message: unknown) => void
 ): Promise<T> =>
   new Promise((resolve, reject) => {
     if (response.ok) {
@@ -402,17 +485,24 @@ export const okstatus = <T extends JSONResponse>(
           response
             .json()
             .then((body: ErrorResponse) => {
-              const error = new Error(body.error || body.message || JSON.stringify(body));
+              const error = new HttpError(
+                body.error || body.message || body.description || JSON.stringify(body),
+                response.status as StatusErrorCode,
+                body
+              );
+
               Object.assign(error, {
-                status: response.status,
                 response: body
               });
 
-              if (body.error || body.message) {
-                reportError(body.error || body.message);
+              if (body.error || body.message || body.description) {
+                (overrideReportError ?? reportError)(
+                  body.error || body.message || body.description
+                );
               } else {
-                reportError(JSON.stringify(body));
+                (overrideReportError ?? reportError)(JSON.stringify(body));
               }
+
               reject(error);
             })
             .catch(error => {
@@ -427,8 +517,8 @@ export const okstatus = <T extends JSONResponse>(
                 error,
                 response.headers.get("content-type")
               );
-              reportError(message);
-              reject(new Error(message));
+              (overrideReportError ?? reportError)(message);
+              reject(new HttpError(message, response.status as StatusErrorCode));
             });
         } catch (error) {
           const errWithMessage = error as { message?: string };
@@ -443,8 +533,8 @@ export const okstatus = <T extends JSONResponse>(
             response.headers.get("content-type")
           );
 
-          reportError(message);
-          reject(new Error(message));
+          (overrideReportError ?? reportError)(message);
+          reject(new HttpError(message, response.status as StatusErrorCode));
         }
       } else {
         logger.warn(
@@ -455,8 +545,8 @@ export const okstatus = <T extends JSONResponse>(
           response.statusText,
           response.headers.get("content-type")
         );
-        reportError(response.statusText);
-        reject(new Error(response.statusText));
+        (overrideReportError ?? reportError)(response.statusText);
+        reject(new HttpError(response.statusText, response.status as StatusErrorCode));
       }
     }
   });
@@ -540,12 +630,12 @@ export const whereField = (field: string, value: string | string[] | undefined |
   return { [field]: value };
 };
 
-export const bool = (s: string | string[] | undefined | null | boolean) =>
+export const bool = (s: string | string[] | number | undefined | null | boolean) =>
   Array.isArray(s)
     ? s.includes("true") || s.includes("1")
     : typeof s === "boolean"
       ? s
-      : s === "true" || s === "1";
+      : s === "true" || s === "1" || s === 1;
 
 /** Converts string or array of strings to string or undefined. */
 export const str = (s: string | string[] | null | undefined) =>
@@ -559,6 +649,8 @@ export const str = (s: string | string[] | null | undefined) =>
           : undefined
         : s;
 
+const ifNaN = <T>(number: number, value: T): number | T => (isNaN(number) ? value : number);
+
 /** Converts string or array of strings to int or undefined. */
 export const int = (s: string | string[] | null | undefined | number): number | undefined =>
   s === null
@@ -567,11 +659,11 @@ export const int = (s: string | string[] | null | undefined | number): number | 
       ? s
       : Array.isArray(s)
         ? s.length > 0
-          ? parseInt(s[0], 10)
+          ? ifNaN(parseInt(s[0], 10), undefined)
           : undefined
         : typeof s === "number"
           ? s
-          : parseInt(s, 10);
+          : ifNaN(parseInt(s, 10), undefined);
 
 export const queryField = (field: string, value: string | string[] | undefined | null) => {
   if (!value || value === "" || (Array.isArray(value) && value.length === 0)) {
@@ -642,7 +734,7 @@ export const formatElapsed = (startDate: Date, endDate: Date) => {
     }
   });
 
-  return formatted.indexOf(":") < 0 ? formatted + "s" : formatted;
+  return formatted.indexOf(":") < 0 ? parseInt(formatted, 10) + "s" : formatted;
 };
 
 /**
@@ -658,6 +750,19 @@ export const formatElapsed = (startDate: Date, endDate: Date) => {
 export function hasKey<K extends string>(k: K) {
   return function <T, V>(a: T & { [k in K]?: V | null }): a is T & { [k in K]: V } {
     return a[k] !== undefined && a[k] !== null;
+  };
+}
+
+/**
+ * Returns a function that can be used to filter down objects
+ * to the ones that have a specific value V under a key `k`.
+ *
+ * Source: https://github.com/robertmassaioli/ts-is-present/blob/master/src/index.ts
+ */
+export function hasKeyValue<K extends string, V>(k: K, v: V) {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  return function <T>(a: T & { [k in K]: any }): a is T & { [k in K]: V } {
+    return a[k] === v;
   };
 }
 
@@ -836,11 +941,12 @@ export const escapeCmdQuotes = (str?: string | null | undefined) => {
   return str?.replace(/'/g, "'\\''") ?? "";
 };
 
-/** Check app running in production */
+/** Check DollarDeploy running in production */
 export const isProd = () => {
-  return process.env.NODE_ENV === "production";
+  return process.env.NEXT_PUBLIC_APP_URL === "https://dollardeploy.com";
 };
 
+/** Minimal API request interface, compatible with NextApiRequest */
 export interface MinimalApiRequest {
   query: {
     [key: string]: string | string[] | undefined;
@@ -858,6 +964,23 @@ export interface MinimalApiRequest {
   socket?: {
     remoteAddress?: string;
   };
+  method?: string;
+}
+
+export type StatusErrorCode = 400 | 401 | 402 | 403 | 404 | 405 | 429 | 500;
+
+export interface StatusHandler<K, E> {
+  (status: 204): Omit<MinimalApiResponse, "status" | "redirect" | "json">;
+  (status: StatusErrorCode): E;
+  (status: 200): K;
+}
+
+/** Minimal API response interface, compatible with NextApiResponse<T> */
+export interface MinimalApiResponse<T = {}> {
+  status: StatusHandler<MinimalApiResponse<T>, MinimalApiResponse<{ message: string }>>;
+  redirect: (status: 301 | 302 | 303 | 307 | 308, url: string) => void;
+  json: (body: T) => void;
+  end: () => void;
 }
 
 /** Gets attribution from query or from a cookie */
@@ -873,7 +996,10 @@ export const getAttribution = (req: MinimalApiRequest | string) => {
       : Object.fromEntries(new URLSearchParams(str(req.cookies?.attribution) || "").entries());
 
   // Do not add undefined
-  const attribution: Omit<UserAttributes, "attributedAt"> = Object.fromEntries(
+  const attribution: Omit<
+    UserAttributes,
+    "attributedAt" | "marketingOptIn" | "tosAcceptedAt" | "privacyPolicyAcceptedAt"
+  > = Object.fromEntries(
     Object.entries({
       utmSource:
         str(query.utm_source) ??
@@ -906,7 +1032,7 @@ export const getAttribution = (req: MinimalApiRequest | string) => {
   if (typeof window !== "undefined") {
     const ref = window.document.referrer || "";
     if (ref && !ref.startsWith(absoluteUrl()) && !ref.startsWith("http://localhost")) {
-      attribution.referrer = ref;
+      attribution.referrer = attribution.referrer ? attribution.referrer : ref;
     }
   }
 
@@ -926,13 +1052,17 @@ export const retainAttribution = (href?: string) => {
   const query = new URLSearchParams(
     typeof window !== "undefined" ? window.location.search : ""
   );
+  const hash = href.indexOf("#") > -1 ? href.split("#")[1] : "";
+  if (hash) {
+    href = href.split("#")[0];
+  }
   const path = href.indexOf("?") > -1 ? href.split("?")[0] : href;
   const newQuery = new URLSearchParams(href?.indexOf("?") > -1 ? href.split("?")[1] : "");
   const search = Object.entries({
     ...Object.fromEntries(
-      Object.entries(query).filter(([key]) => key !== "callbackUrl" && key !== "error")
+      Array.from(query.entries()).filter(([key]) => key !== "callbackUrl" && key !== "error")
     ),
-    ...Object.fromEntries(newQuery),
+    ...Object.fromEntries(newQuery.entries()),
     ...(!referrer ||
     referrer.startsWith(absoluteUrl()) ||
     referrer.startsWith("http://localhost")
@@ -947,5 +1077,227 @@ export const retainAttribution = (href?: string) => {
           : key
     )
     .join("&");
-  return path + (search ? "?" + search : "");
+  return path + (search ? "?" + search : "") + (hash ? "#" + hash : "");
+};
+
+export const extractUrlPart = (value: string | number | boolean, part: string) => {
+  const urlObj = new URL(String(value));
+
+  if (!part) {
+    throw new Error("Undefined URL part: " + part);
+  }
+
+  switch (part.toLowerCase()) {
+    case "host":
+      return urlObj.host;
+    case "hostname":
+      return urlObj.hostname;
+    case "port":
+      return urlObj.port ? parseInt(urlObj.port) : 0;
+    case "path":
+      return urlObj.pathname;
+    case "username":
+      return urlObj.username;
+    case "password":
+      return urlObj.password;
+    case "database":
+      return urlObj.pathname && urlObj.pathname.startsWith("/")
+        ? urlObj.pathname.slice(1)
+        : "";
+    case "query":
+      return urlObj.search ? urlObj.search.slice(1) : "";
+    case "fragment":
+      return urlObj.hash ? urlObj.hash.slice(1) : "";
+    default:
+      throw new Error("Unknown URL part: " + part);
+  }
+};
+
+/** Replace environment references in a string */
+export const interpolateValue = <T extends string | number | boolean>(
+  val: T | undefined | null,
+  env: Record<string, string | number | boolean>,
+  seen?: string[]
+): T | undefined | null => {
+  if (!val) {
+    return val;
+  }
+
+  if (typeof val !== "string") {
+    return val;
+  }
+
+  if (typeof val === "string" && val.includes("${")) {
+    return val.replace(/\$\{([^}]*)\}/g, (_, key) => {
+      key = key.trim();
+      if (key === "") {
+        throw new Error("Empty variable reference: " + val);
+      }
+
+      if (seen?.includes(key)) {
+        throw new Error("Circular reference: ${" + key + "}");
+      }
+
+      // Allow for references like DB_USERNAME=${MYSQL_URL:username}
+      let part: string | undefined = undefined;
+
+      if (key.indexOf(":") !== -1) {
+        const parts = key.split(":");
+        key = parts[0];
+        part = parts[1];
+      }
+
+      let value = env[key];
+
+      if (value === undefined || value === null) {
+        throw new Error("No variable " + key + " found");
+      }
+
+      if (part) {
+        value = extractUrlPart(value, part);
+      }
+
+      const v = interpolateValue(value, env, [...(seen || []), key]);
+      if (v === undefined || v === null) {
+        throw new Error("No variable " + key + " found");
+      }
+
+      return String(v);
+    }) as T;
+  } else {
+    return val;
+  }
+};
+
+/** Extrapolate environment, replacing all references to env vars */
+export const interpolateEnv = (env: Record<string, string | number | boolean>) => {
+  return Object.fromEntries(
+    Object.entries(env).map(([key, value]) => [key, interpolateValue(value, env, [key])])
+  );
+};
+
+/** Shuffle array */
+export const shuffle = <T>(arr: T[]): T[] => {
+  return arr.sort(() => Math.random() - 0.5);
+};
+
+export function isArrayOfNumbers(arr: unknown): arr is number[] {
+  if (!Array.isArray(arr)) {
+    return false;
+  }
+  return arr.every(item => typeof item === "number");
+}
+
+export function isArrayOfDates(arr: unknown): arr is Date[] {
+  if (!Array.isArray(arr)) {
+    return false;
+  }
+  return arr.every(item => item instanceof Date);
+}
+
+export const parseUrl = (url: string) => {
+  try {
+    return new URL(url);
+  } catch (_e) {
+    return undefined;
+  }
+};
+
+/**
+ * Creates function which sorts by date field
+ */
+export const byDateField =
+  <P extends string>(field: P, direction: "asc" | "desc" = "asc") =>
+  (a: Record<P, Date>, b: Record<P, Date>): number => {
+    const aa = a[field] instanceof Date ? a[field].getTime() : new Date(a[field]).getTime();
+    const bb = b[field] instanceof Date ? b[field].getTime() : new Date(b[field]).getTime();
+    return direction === "asc" ? aa - bb : bb - aa;
+  };
+
+export interface Abortable {
+  abort: () => void;
+}
+
+/**
+ * Wraps object into a proxy which supports aborting. If abort() is called,
+ * any function call will throw an error.
+ *
+ * @param o - The object to wrap.
+ * @param message - The message to throw when aborting.
+ * @param errorOptions - The options to pass to the error.
+ * @returns The wrapped object.
+ */
+export const abortable = <T extends object>(
+  o: T,
+  message = "Aborted",
+  errorOptions: ErrorOptions | undefined = undefined
+) => {
+  let aborted = false;
+
+  const p = new Proxy(o, {
+    get: (target, key) => {
+      if (typeof target[key as keyof T] !== "function") {
+        return target[key as keyof T];
+      } else if (typeof key === "symbol") {
+        return target[key as keyof T];
+      } else {
+        const func = target[key as keyof T];
+        if (typeof func !== "function") {
+          return func;
+        }
+
+        return new Proxy(func as object, {
+          apply: (_target, thisArg, argArray) => {
+            if (aborted) {
+              aborted = false;
+              logger.warn("Aborting method", key, "(", ...argArray, ")");
+              throw new Error(message, errorOptions);
+            }
+            return func.apply(thisArg, argArray);
+          }
+        });
+      }
+    }
+  });
+
+  const abortableLogger = p as T & { abort: () => void };
+
+  abortableLogger.abort = () => {
+    aborted = true;
+  };
+
+  return abortableLogger;
+};
+
+export const measureCall = <T extends unknown | Promise<unknown>>(
+  mark: string,
+  fn: () => T,
+  warningThreshold = 100
+): T => {
+  const start = performance.now();
+  const result = fn();
+  if (result instanceof Promise) {
+    return result.finally(() => {
+      const end = performance.now();
+      const duration = end - start;
+      if (duration > warningThreshold) {
+        logger.warn(mark, "elapsed", duration, "ms");
+      } else if (logger.isVerbose) {
+        logger.verbose(mark, "elapsed", duration, "ms");
+      }
+    }) as T;
+  } else {
+    const end = performance.now();
+    const duration = end - start;
+    if (duration > warningThreshold) {
+      logger.warn(mark, "elapsed", duration, "ms");
+    } else if (logger.isVerbose) {
+      logger.verbose(mark, "elapsed", duration, "ms");
+    }
+  }
+  return result;
+};
+
+export const assertNever = (value: never): never => {
+  throw new Error("Unexpected value: " + String(value));
 };
