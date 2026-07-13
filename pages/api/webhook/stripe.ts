@@ -1,7 +1,7 @@
 import Stripe from "stripe";
 import { prisma } from "@/lib/db";
 import { NextApiRequest, NextApiResponse } from "next";
-import { getPlanLimits, getStripe, updateSubscription } from "@/lib/stripe";
+import { fromSubscription, getPlanLimits, getStripe, updateSubscription } from "@/lib/stripe";
 import logger from "@/lib/logger";
 import { buffer } from "stream/consumers";
 
@@ -41,7 +41,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       await updateSubscription(session.id);
     } else if (event.type === "invoice.payment_succeeded") {
       const invoice = event.data.object as Stripe.Invoice;
-      const subscription = await stripe.subscriptions.retrieve(invoice.subscription as string);
+      const subscription = await stripe.subscriptions.retrieve(
+        invoice.lines.data[0].subscription as string
+      );
       const userId = subscription.metadata?.userId;
       const tenantId = subscription.metadata?.tenantId;
       if (!userId || !tenantId) {
@@ -63,8 +65,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         },
         data: {
           planId: subscription.items.data[0].price.lookup_key,
-          stripePriceId: subscription.items.data[0].price.id,
-          stripeCurrentPeriodEnd: new Date(subscription.current_period_end * 1000),
+          ...fromSubscription(subscription),
           ...getPlanLimits(subscription.items.data[0].price.lookup_key)
         }
       });
@@ -142,13 +143,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         },
         data: {
           planId: subscription.items.data[0].price.lookup_key,
-          stripePriceId: subscription.items.data[0].price.id,
-          stripeCurrentPeriodEnd: new Date(subscription.current_period_end * 1000),
-          stripeCancelAtPeriodEnd: subscription.cancel_at_period_end,
-          stripeCancelAt: subscription.canceled_at
-            ? new Date(subscription.canceled_at * 1000)
-            : null,
-          stripeCancelReason: subscription.cancellation_details?.reason,
+          ...fromSubscription(subscription),
           ...getPlanLimits(subscription.items.data[0].price.lookup_key)
         }
       });

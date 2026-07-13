@@ -1,13 +1,12 @@
-import { authOptions } from "@/lib/auth";
 import logger from "@/lib/logger";
+import { getServerSession } from "@/lib/middleware";
 import { getTenantById, getUserById } from "@/lib/user";
 import { NextApiRequest, NextApiResponse } from "next";
-import { getServerSession } from "next-auth";
 
 export type UserResponse = Awaited<ReturnType<typeof getUserById>>;
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
-  const session = await getServerSession(req, res, authOptions(req));
+  const session = await getServerSession(req, res);
   if (!session?.user) {
     return res.status(401).json({ error: "Unauthorized" });
   }

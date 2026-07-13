@@ -1,7 +1,6 @@
 import { NextApiRequest, NextApiResponse } from "next";
 import { prisma } from "@/lib/db";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import { getServerSession } from "@/lib/middleware";
 import logger from "@/lib/logger";
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
@@ -11,7 +10,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     return res.status(400).json({ message: "Invalid ID" });
   }
 
-  const session = await getServerSession(req, res, authOptions(req));
+  const session = await getServerSession(req, res);
   if (!session?.user) {
     return res.status(401).json({ message: "Unauthorized" });
   }

@@ -1,14 +1,13 @@
 import { absoluteUrl, str } from "@/lib/utils";
 import { getStripe, getTenantSubscription, updateSubscription } from "@/lib/stripe";
-import { getServerSession } from "next-auth";
+import { getServerSession } from "@/lib/middleware";
 import { NextApiRequest, NextApiResponse } from "next";
-import { authOptions } from "@/lib/auth";
 import { getUserById } from "@/lib/user";
 import logger from "@/lib/logger";
 import { plans } from "@/components/landing/Pricing";
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
-  const session = await getServerSession(req, res, authOptions(req));
+  const session = await getServerSession(req, res);
   if (!session?.user) {
     return res.status(401).json({ error: "Unauthorized" });
   }

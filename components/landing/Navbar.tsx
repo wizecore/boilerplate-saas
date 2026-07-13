@@ -18,9 +18,9 @@ import { capitalize, cn, fetcherIgnore404 } from "@/lib/utils";
 import { User } from "@/types";
 import { JSONSafe } from "@/types";
 import useSWR from "swr";
-import logger from "@/lib/logger";
-import { AlignJustify, AppWindowMacIcon } from "lucide-react";
+import { AlignJustify } from "lucide-react";
 import React from "react";
+import { applyFlags, Logo } from "@/components/Branding";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -28,41 +28,6 @@ import {
   DropdownMenuTrigger
 } from "@/components/ui/dropdown-menu";
 import { getLandingMenu } from "@/components/landing/landingMenu";
-
-export const Logo = ({
-  className = "",
-  counter
-}: {
-  button?: boolean;
-  className?: string;
-  counter?: number;
-}) => (
-  <div className="flex flex-row items-center justify-center relative">
-    <AppWindowMacIcon className={cn("stroke-1.5 h-8 w-8", className)} />
-
-    {counter && (
-      <span className="absolute bottom-0 right-0 flex items-center justify-center text-[8px] bg-red-400 text-white border border-red rounded-full px-1 pt-0.5">
-        {counter}
-      </span>
-    )}
-  </div>
-);
-
-export const applyFlags = (user?: Pick<User, "flags">) => {
-  if (!user) {
-    return;
-  }
-
-  if (user.flags.includes("tracking-")) {
-    if (!localStorage.getItem("plausible_ignore")) {
-      logger.info("Disabling tracking");
-      localStorage.setItem("plausible_ignore", "true");
-    }
-  } else if (localStorage.getItem("plausible_ignore")) {
-    logger.info("Enabling tracking");
-    localStorage.removeItem("plausible_ignore");
-  }
-};
 
 export const Navbar = () => {
   const router = useRouter();

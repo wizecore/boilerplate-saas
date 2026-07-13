@@ -13,6 +13,9 @@ import { customAlphabet } from "nanoid";
 import { fromError as fromZodError } from "zod-validation-error";
 import randomBytes from "randombytes";
 import { z } from "zod";
+import normalizeEmailValidator from "validator/lib/normalizeEmail";
+import isEmail from "validator/lib/isEmail";
+import ms from "ms";
 
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
@@ -58,6 +61,25 @@ export const isFileSystemSafe = (name: string) => {
 
   return true;
 };
+
+/**
+ * Validates a DNS hostname (case-insensitive, Unicode-aware). Rejects
+ * whitespace, empty labels ("a..b") or labels longer than 63 characters.
+ */
+export const isValidHostname = (hostname: string) => {
+  const value = hostname.trim().replace(/\.$/, "");
+  if (value.length === 0 || value.length > 253) {
+    return false;
+  }
+  const label = /^(?!-)[\p{L}\p{N}-]{1,63}(?<!-)$/u;
+  return value.split(".").every(part => label.test(part));
+};
+
+/** Resolve after the given number of milliseconds. */
+export const sleep = (ms: number) => new Promise<void>(resolve => setTimeout(resolve, ms));
+
+/** Normalize a string: trim whitespace and clamp to a maximum length. */
+export const normalize = (str: string, max = 60) => str.trim().slice(0, max);
 
 /** Periodically run a function until a promise is resolved */
 export const runUntil = async <T>(
@@ -215,6 +237,10 @@ export function dashedToCamel(str: string) {
   return str.replace(/-([a-z])/g, (_, letter) => letter.toUpperCase());
 }
 
+export function underscoreToCamel(str: string) {
+  return str.replace(/_([a-z])/g, (_, letter) => letter.toUpperCase());
+}
+
 /** Convert thisValueIsNice to this Value Is Nice */
 export const camelToSpaced = (str: string) =>
   str
@@ -240,6 +266,99 @@ export const truncate = (str: string, length: number) => {
     return str;
   }
   return `${str.slice(0, length)}...`;
+};
+
+/**
+ * Takes the last 8 characters of a CUID as a short suffix identifier.
+ * @link https://github.com/paralleldrive/cuid?tab=readme-ov-file#broken-down
+ */
+export const shortId = (cuid: string) => cuid.slice(-8);
+
+/** If string is longer than max (default 250), truncate string and add "..." */
+export const shorten = (str: string | undefined, max = 250) => {
+  if (str === undefined || str === null) {
+    return str;
+  }
+  if (str.length > max) {
+    str = str.substring(0, max - 3) + "...";
+  }
+  return str;
+};
+
+/**
+ * Extract and normalize an email address from arbitrary input (lowercases the
+ * domain, canonicalizes gmail dots, etc.). Returns undefined when no valid
+ * email can be extracted.
+ */
+export const normalizeEmail = (input: string): string | undefined => {
+  let email: string | false = input;
+  // prettier-ignore
+  const matcher = /[a-zA-Z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*/g;
+  const matches = matcher.exec(email);
+  if (matches && matches[0] !== undefined && matches[0] !== null) {
+    email = matches[0];
+    email = normalizeEmailValidator(email, {
+      gmail_remove_subaddress: false
+    });
+    if (email === "@" || email === false) {
+      return undefined;
+    } else if (email.startsWith("@")) {
+      return undefined;
+    } else {
+      return isEmail(email) ? email : undefined;
+    }
+  } else if (email !== undefined && email !== null) {
+    email = normalizeEmailValidator(email, {
+      gmail_remove_subaddress: false
+    });
+    if (email === "@" || email === false) {
+      return undefined;
+    } else if (email.startsWith("@")) {
+      return undefined;
+    } else {
+      return isEmail(email) ? email : undefined;
+    }
+  } else {
+    return undefined;
+  }
+};
+
+const suffixes = [
+  "s",
+  "seconds",
+  "ms",
+  "d",
+  "day",
+  "days",
+  "h",
+  "hour",
+  "hours",
+  "m",
+  "min",
+  "minute",
+  "minutes"
+];
+
+/**
+ * Parse a date string that is either an absolute date or a relative duration
+ * measured back from `base` (default: now), e.g. "2d" or "30 minutes".
+ * Throws HttpError(400) on an unparseable value.
+ */
+export const parseDate = (date: string, base?: Date) => {
+  let dt: Date;
+  base = base ?? new Date();
+  date = date.trim();
+  if (suffixes.some(suffix => date.endsWith(suffix))) {
+    dt = new Date(base.getTime() - ms(date));
+  } else {
+    dt = new Date(date);
+  }
+
+  if (isNaN(dt.getTime())) {
+    throw new HttpError("Invalid date", 400);
+  }
+
+  return dt;
 };
 
 /**
@@ -982,6 +1101,11 @@ export interface MinimalApiResponse<T = {}> {
   json: (body: T) => void;
   end: () => void;
 }
+
+export interface MinimalApiResponseErrorBody {
+  message: string;
+}
+export type MinimalApiResponseError = MinimalApiResponse<MinimalApiResponseErrorBody>;
 
 /** Gets attribution from query or from a cookie */
 export const getAttribution = (req: MinimalApiRequest | string) => {

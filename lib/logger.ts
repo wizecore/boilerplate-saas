@@ -1,5 +1,4 @@
 /* eslint-disable no-console */
-/* eslint-disable @typescript-eslint/no-empty-function */
 
 export interface MinimalLogger {
   info: (...args: unknown[]) => void;
@@ -40,6 +39,22 @@ const requestTracker = (
 ).__requestTracker;
 
 /**
+ * Optional server-side log collector installed on `globalThis.__logCollector`.
+ * When present, logger methods forward records to the collector instead of writing to console directly.
+ */
+const logCollector = (
+  globalThis as unknown as {
+    __logCollector?: {
+      push: (log: {
+        level: "debug" | "info" | "warn" | "error";
+        message: unknown[];
+        timestamp?: number;
+      }) => void;
+    };
+  }
+).__logCollector;
+
+/**
  * Universal logger based on console. Also supports logger.verbose()
  * and level testing properties, i.e. logger.isVerbose || false
  *
@@ -54,23 +69,50 @@ const requestTracker = (
  * }
  * ```
  */
-const logger: Logger = {
-  isVerbose: process.env.NEXT_PUBLIC_LOG_VERBOSE === "1" ? true : false,
-  verbose:
-    process.env.NEXT_PUBLIC_LOG_VERBOSE === "1"
-      ? requestTracker
-        ? console.info.bind(console.info, "%s%s", new Level("DEBUG"), requestTracker)
-        : console.info.bind(console.info, "%s", new Level("DEBUG"))
-      : () => {},
-  info: requestTracker
-    ? console.info.bind(console.info, "%s%s", new Level("INFO"), requestTracker)
-    : console.info.bind(console.info, "%s", new Level("INFO")),
-  warn: requestTracker
-    ? console.warn.bind(console.warn, "%s%s", new Level("WARN"), requestTracker)
-    : console.warn.bind(console.warn, "%s", new Level("WARN")),
-  error: requestTracker
-    ? console.error.bind(console.error, "%s%s", new Level("ERROR"), requestTracker)
-    : console.error.bind(console.error, "%s", new Level("ERROR"))
-};
+const logger: Logger = logCollector
+  ? {
+      isVerbose: process.env.NEXT_PUBLIC_LOG_VERBOSE === "1" ? true : false,
+      verbose:
+        process.env.NEXT_PUBLIC_LOG_VERBOSE === "1"
+          ? (...message: unknown[]) =>
+              logCollector.push({
+                level: "debug",
+                message
+              })
+          : () => {},
+      info: (...message: unknown[]) =>
+        logCollector.push({
+          level: "info",
+          message
+        }),
+      warn: (...message: unknown[]) =>
+        logCollector.push({
+          level: "warn",
+          message
+        }),
+      error: (...message: unknown[]) =>
+        logCollector.push({
+          level: "error",
+          message
+        })
+    }
+  : {
+      isVerbose: process.env.NEXT_PUBLIC_LOG_VERBOSE === "1" ? true : false,
+      verbose:
+        process.env.NEXT_PUBLIC_LOG_VERBOSE === "1"
+          ? requestTracker
+            ? console.info.bind(console.info, "%s%s", new Level("DEBUG"), requestTracker)
+            : console.info.bind(console.info, "%s", new Level("DEBUG"))
+          : () => {},
+      info: requestTracker
+        ? console.info.bind(console.info, "%s%s", new Level("INFO"), requestTracker)
+        : console.info.bind(console.info, "%s", new Level("INFO")),
+      warn: requestTracker
+        ? console.warn.bind(console.warn, "%s%s", new Level("WARN"), requestTracker)
+        : console.warn.bind(console.warn, "%s", new Level("WARN")),
+      error: requestTracker
+        ? console.error.bind(console.error, "%s%s", new Level("ERROR"), requestTracker)
+        : console.error.bind(console.error, "%s", new Level("ERROR"))
+    };
 
 export default logger;

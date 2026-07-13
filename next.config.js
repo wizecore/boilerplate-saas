@@ -1,14 +1,27 @@
-const IMAGE_EXTENSIONS = ["jpg", "jpeg", "png", "svg", "gif", "ico", "webp", "jp2", "avif"];
-
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  reactStrictMode: false,
-  devIndicators: false,
+  output: "standalone",
+  reactStrictMode: true,
+  productionBrowserSourceMaps: true,
+  // Avoid ERR_MODULE_NOT_FOUND by transpiling motion, or framer-motion
+  transpilePackages: ["motion", "framer-motion"],
+  // Keep the Prisma client, its Postgres driver adapter and pg out of the bundle so the
+  // generated query compiler and node-postgres resolve from node_modules at runtime.
+  serverExternalPackages: ["@prisma/client", "@prisma/adapter-pg", "pg"],
   experimental: {
+    scrollRestoration: true,
     webVitalsAttribution: ["CLS", "LCP"],
-    serverSourceMaps: true
+    serverSourceMaps: true,
+    webpackBuildWorker: true,
+    webpackMemoryOptimizations: true
   },
+  allowedDevOrigins: process.env.NEXT_PUBLIC_APP_URL
+    ? [new URL(process.env.NEXT_PUBLIC_APP_URL).hostname]
+    : undefined,
+  devIndicators: false,
+  // https://nextjs.org/docs/app/api-reference/config/next-config-js/logging
   logging: {
+    incomingRequests: false,
     fetches: {
       fullUrl: true
     }
@@ -29,43 +42,22 @@ const nextConfig = {
           {
             key: "Access-Control-Allow-Origin",
             value: "*"
+          },
+          {
+            key: "Access-Control-Allow-Credentials",
+            value: "true"
+          },
+          {
+            key: "Access-Control-Allow-Headers",
+            value: "content-type,authorization"
+          },
+          {
+            key: "Access-Control-Expose-Headers",
+            value: "content-type,authorization"
           }
         ]
       }
     ];
-  },
-  /** @type {import('next').NextConfig['webpack']} */
-  webpack: (config, { isServer }) => {
-    config.module.rules.push({
-      test: new RegExp(`\.(${IMAGE_EXTENSIONS.join("|")})$`),
-      // Next.js already handles url() in css/sass/scss files
-      issuer: /\.\w+(?<!(s?c|sa)ss)$/i,
-      use: [
-        {
-          loader: "url-loader",
-          options: {
-            limit: 8192,
-            fallback: "file-loader",
-            outputPath: `${isServer ? "../" : ""}static/images/`,
-            publicPath: "/_next/static/images/",
-            name: "[name]-[hash].[ext]"
-          }
-        }
-      ]
-    });
-
-    config.module.rules.push(
-      ...[
-        {
-          test: /\.ya?ml$/,
-          use: "js-yaml-loader"
-        }
-      ]
-    );
-
-    // https://github.com/vercel/next.js/pull/50792#issuecomment-1586637022
-    config.watchOptions = { poll: 1000, aggregateTimeout: 500 };
-    return config;
   }
 };
 

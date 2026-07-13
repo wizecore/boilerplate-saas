@@ -1,4 +1,5 @@
-import { Logo, Navbar } from "@/components/landing/Navbar";
+import { Navbar } from "@/components/landing/Navbar";
+import { Logo } from "@/components/Branding";
 import { cn } from "@/lib/utils";
 
 const FooterNav = () => {

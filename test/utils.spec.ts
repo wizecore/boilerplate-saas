@@ -49,7 +49,15 @@ import {
   retainAttribution,
   shuffle,
   isArrayOfNumbers,
-  isArrayOfDates
+  isArrayOfDates,
+  isValidHostname,
+  sleep,
+  normalize,
+  underscoreToCamel,
+  shortId,
+  shorten,
+  normalizeEmail,
+  parseDate
 } from "@/lib/utils";
 import { z } from "zod";
 
@@ -1176,5 +1184,149 @@ describe("retainAttribution", () => {
   it("should handle empty href", () => {
     const result = retainAttribution();
     expect(result).toBe("");
+  });
+});
+
+describe("isValidHostname", () => {
+  it("accepts valid hostnames", () => {
+    expect(isValidHostname("example.com")).toBe(true);
+    expect(isValidHostname("sub.domain.example.com")).toBe(true);
+    expect(isValidHostname("localhost")).toBe(true);
+    expect(isValidHostname("EXAMPLE.COM")).toBe(true);
+    expect(isValidHostname("xn--80ak6aa92e.com")).toBe(true);
+  });
+
+  it("ignores a single trailing dot", () => {
+    expect(isValidHostname("example.com.")).toBe(true);
+  });
+
+  it("rejects empty, whitespace and empty labels", () => {
+    expect(isValidHostname("")).toBe(false);
+    expect(isValidHostname("   ")).toBe(false);
+    expect(isValidHostname("a..b")).toBe(false);
+    expect(isValidHostname("has space.com")).toBe(false);
+  });
+
+  it("rejects leading/trailing hyphens and illegal characters", () => {
+    expect(isValidHostname("-lead.com")).toBe(false);
+    expect(isValidHostname("trail-.com")).toBe(false);
+    expect(isValidHostname("under_score.com")).toBe(false);
+  });
+
+  it("rejects labels over 63 chars and names over 253 chars", () => {
+    expect(isValidHostname("a".repeat(64) + ".com")).toBe(false);
+    const longName = (label => `${label}.${label}.${label}.${label}`)("a".repeat(63));
+    expect(longName.length).toBeGreaterThan(253);
+    expect(isValidHostname(longName)).toBe(false);
+  });
+});
+
+describe("sleep", () => {
+  beforeEach(() => vi.useFakeTimers());
+  afterEach(() => vi.useRealTimers());
+
+  it("resolves only after the given delay", async () => {
+    let resolved = false;
+    const promise = sleep(1000).then(() => {
+      resolved = true;
+    });
+    expect(resolved).toBe(false);
+    await vi.advanceTimersByTimeAsync(999);
+    expect(resolved).toBe(false);
+    await vi.advanceTimersByTimeAsync(1);
+    await promise;
+    expect(resolved).toBe(true);
+  });
+});
+
+describe("normalize", () => {
+  it("trims surrounding whitespace", () => {
+    expect(normalize("  hello  ")).toBe("hello");
+    expect(normalize("  hello world  ")).toBe("hello world");
+  });
+
+  it("clamps to the default maximum length", () => {
+    expect(normalize("a".repeat(100))).toHaveLength(60);
+  });
+
+  it("trims before clamping to a custom maximum", () => {
+    expect(normalize("  abcdef  ", 3)).toBe("abc");
+    expect(normalize("")).toBe("");
+  });
+});
+
+describe("underscoreToCamel", () => {
+  it("converts underscore_case to camelCase", () => {
+    expect(underscoreToCamel("hello_world")).toBe("helloWorld");
+    expect(underscoreToCamel("foo_bar_baz")).toBe("fooBarBaz");
+  });
+
+  it("leaves strings without lowercase-led underscores untouched", () => {
+    expect(underscoreToCamel("nochange")).toBe("nochange");
+    expect(underscoreToCamel("with_123")).toBe("with_123");
+  });
+});
+
+describe("shortId", () => {
+  it("returns the last 8 characters of a cuid", () => {
+    expect(shortId("clabc123def456ghi")).toBe("ef456ghi");
+    expect(shortId("abcdefghijklmnop")).toBe("ijklmnop");
+  });
+
+  it("returns the whole string when shorter than 8", () => {
+    expect(shortId("short")).toBe("short");
+  });
+});
+
+describe("shorten", () => {
+  it("passes through undefined", () => {
+    expect(shorten(undefined)).toBeUndefined();
+  });
+
+  it("leaves short strings untouched", () => {
+    expect(shorten("short")).toBe("short");
+    expect(shorten("hello", 5)).toBe("hello");
+  });
+
+  it("truncates and appends ellipsis when over the max", () => {
+    expect(shorten("a".repeat(300))).toHaveLength(250);
+    expect(shorten("a".repeat(300))?.endsWith("...")).toBe(true);
+    expect(shorten("abcdef", 5)).toBe("ab...");
+  });
+});
+
+describe("normalizeEmail", () => {
+  it("lowercases and returns a valid address", () => {
+    expect(normalizeEmail("USER@EXAMPLE.COM")).toBe("user@example.com");
+  });
+
+  it("extracts an address from surrounding text", () => {
+    expect(normalizeEmail("mailto:john@example.com please")).toBe("john@example.com");
+  });
+
+  it("canonicalizes gmail dotted local parts", () => {
+    expect(normalizeEmail("john.doe@gmail.com")).toBe("johndoe@gmail.com");
+  });
+
+  it("returns undefined when there is no valid email", () => {
+    expect(normalizeEmail("not an email")).toBeUndefined();
+  });
+});
+
+describe("parseDate", () => {
+  const base = new Date("2024-01-15T12:00:00.000Z");
+
+  it("subtracts relative durations from the base date", () => {
+    expect(parseDate("1d", base).toISOString()).toBe("2024-01-14T12:00:00.000Z");
+    expect(parseDate("2 days", base).toISOString()).toBe("2024-01-13T12:00:00.000Z");
+    expect(parseDate("30m", base).toISOString()).toBe("2024-01-15T11:30:00.000Z");
+  });
+
+  it("parses absolute dates", () => {
+    expect(parseDate("2020-06-01").toISOString()).toBe("2020-06-01T00:00:00.000Z");
+  });
+
+  it("throws HttpError on invalid input", () => {
+    expect(() => parseDate("not a date")).toThrow(HttpError);
   });
 });

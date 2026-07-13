@@ -7,8 +7,6 @@ import Credentials from "next-auth/providers/credentials";
 import Email from "next-auth/providers/email";
 import logger from "./logger";
 import { randomUUID } from "crypto";
-// eslint-disable-next-line local-rules/disallow-prisma-client-import
-import { PrismaClient } from "@prisma/client";
 import { AdapterUser } from "next-auth/adapters";
 import { sendMail } from "@/lib/mail";
 import { SignInMail } from "@/lib/mail/signInMail";
@@ -146,8 +144,9 @@ const authProviders = {
 
 export const authOptions: (req: MinimalApiRequest) => NextAuthOptions = req => ({
   adapter: {
-    // FIXME: we override type of PrismaClient, but we don't touch account, users, etc tables
-    ...PrismaAdapter(prisma as unknown as PrismaClient),
+    // The adapter only touches the auth tables (accounts, sessions, users); cast the
+    // driver-adapter-backed client to whatever client type PrismaAdapter expects.
+    ...PrismaAdapter(prisma as unknown as Parameters<typeof PrismaAdapter>[0]),
     createUser: async (profile: Omit<AdapterUser, "id">) => {
       const now = new Date();
       const tenant = await prisma.tenant.create({
