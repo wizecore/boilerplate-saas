@@ -1,20 +1,12 @@
 import { Task } from "@/types";
 import { prisma } from "@/lib/db";
-import { ICache, getCache } from "@/lib/cache";
+import { getCache } from "@/lib/cache";
 import { S3Client } from "@aws-sdk/client-s3";
 import { queueState } from "@/lib/queue/queueState";
 import { queue } from "@/lib/queue";
-import { worker } from "@/lib/worker";
+import { tick } from "./queue/tick";
 
-interface Compute {
-  s3: S3Client;
-  prisma: typeof prisma;
-  cache: ICache;
-  queue: (task: Task, delayMs?: number, skipProcess?: boolean) => Promise<void>;
-  tick: () => Promise<void>;
-}
-
-export const getCompute = async (): Promise<Compute> => {
+export const getCompute = async () => {
   const s3 = new S3Client({
     region: process.env.S3_REGION ?? "",
     credentials: {
@@ -25,18 +17,6 @@ export const getCompute = async (): Promise<Compute> => {
     endpoint: process.env.S3_ENDPOINT
   });
 
-  const tick = async () => {
-    // DO NOT REMOVE THIS, it's used to ensure that the worker is running
-    await worker.isRunning();
-    const task = await prisma.task.create({
-      data: {
-        type: "tick",
-        status: "queued"
-      }
-    });
-    await queue.add("tick", task);
-  };
-
   // Always update with new handler, for hot-reloading during dev
   queueState.setHandler(() => tick());
 
@@ -45,10 +25,17 @@ export const getCompute = async (): Promise<Compute> => {
     prisma,
     cache: await getCache(),
     queue: async (task: Task, delayMs?: number) => {
-      if (task.status !== "queued") {
-        throw new Error("Task is not queued");
-      }
-      queue.add(task.type, task, {
+      await prisma.task.update({
+        where: { id: task.id },
+        data: {
+          status: "queued",
+          executing: false,
+          executionStartedAt: null,
+          nextExecuteAt: delayMs ? new Date(Date.now() + delayMs) : undefined
+        }
+      });
+
+      await queue.add(task.type, task, {
         delay: delayMs
       });
     },

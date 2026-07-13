@@ -229,5 +229,9 @@
     "*.json": [
       "prettier --write"
     ]
+  },
+  "allowScripts": {
+    "@prisma/engines@7.8.0": true,
+    "esbuild@0.28.1": true
   }
 }

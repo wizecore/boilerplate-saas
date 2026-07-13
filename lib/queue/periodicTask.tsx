@@ -19,6 +19,21 @@ export const periodicTaskInterval: Record<
   "period:month": 30 * 24 * 60 * 60 * 1000
 };
 
+/**
+ * Computes the delay for re-scheduling a periodic task, anchored to the
+ * previous scheduled time (`nextExecuteAt`) to prevent drift. When the task is
+ * overdue (or has never run) the next run is scheduled one interval from now.
+ */
+export const getNextDelay = (
+  nextExecuteAt: Date | null | undefined,
+  interval: number,
+  now: number = Date.now()
+): number => {
+  const anchor = nextExecuteAt?.getTime() ?? now;
+  const nextTarget = anchor + interval;
+  return Math.max(nextTarget - now, 0) || interval;
+};
+
 export const periodicTask = async (task: Task, providedLogger?: MinimalLogger) => {
   const { prisma } = await getCompute();
   const journalled = providedLogger ? undefined : journal.task(task);
