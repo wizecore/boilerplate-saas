@@ -1,7 +1,7 @@
 import { AppProps } from "next/app";
 import Head from "next/head";
 import "./global.css";
-import { SessionProvider } from "next-auth/react";
+import { SessionProvider } from "@/components/useSession";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { ErrorReportProvider } from "@/components/ErrorReportProvider";
 import { Toaster } from "@/components/ui/toaster";

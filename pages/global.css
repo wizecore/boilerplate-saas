@@ -176,6 +176,13 @@ body {
   overflow-x: hidden;
 }
 
+/* Disable macOS rubber-band overscroll inside the dashboard so the sticky top
+   bar stays put. Scoped via AppShell so the marketing pages keep their bounce. */
+body.no-overscroll,
+html:has(body.no-overscroll) {
+  overscroll-behavior: none;
+}
+
 .link {
   @apply text-primary underline-offset-4 hover:underline;
 }

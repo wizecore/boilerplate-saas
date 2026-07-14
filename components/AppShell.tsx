@@ -1,10 +1,13 @@
 import { Header } from "@/components/dashboard/Header";
 import { Sidebar } from "@/components/dashboard/Sidebar";
-import { applyFlags } from "@/components/landing/Navbar";
+import { applyFlags } from "@/components/Branding";
 import { Loader } from "@/components/Loader";
+import { useLocalStorage } from "@/components/useLocalStorage";
 import { useRouteLoading } from "@/components/useRouteLoading";
+import { useSession } from "@/components/useSession";
+import { fetcherIgnore404 } from "@/lib/utils";
 import { JSONSafe, NavItem, User } from "@/types";
-import { signIn, useSession } from "next-auth/react";
+import { signIn } from "next-auth/react";
 import { useRouter } from "next/router";
 import { useEffect } from "react";
 import useSWR from "swr";
@@ -24,10 +27,12 @@ export const AppShell = ({
 }) => {
   const loading = useRouteLoading();
   const { isReady, pathname } = useRouter();
-  const { data: session, status } = useSession({
-    required: false
-  });
-  const { data: user, isLoading } = useSWR<JSONSafe<User>>("/api/user");
+  const { data: session, status } = useSession();
+  const { data: user, isLoading } = useSWR<JSONSafe<User>>("/api/user", fetcherIgnore404);
+  const [isSidebarCollapsed, setSidebarCollapsed] = useLocalStorage<boolean>(
+    "sidebar.collapsed",
+    false
+  );
 
   useEffect(() => {
     if (!user && !isLoading && pathname) {
@@ -36,6 +41,13 @@ export const AppShell = ({
       });
     }
   }, [user, isLoading, pathname]);
+
+  // Disable macOS rubber-band overscroll while the dashboard is mounted so the
+  // sticky header stays put; the marketing pages keep their native bounce.
+  useEffect(() => {
+    document.body.classList.add("no-overscroll");
+    return () => document.body.classList.remove("no-overscroll");
+  }, []);
 
   if (status === "loading") {
     return null;
@@ -56,10 +68,12 @@ export const AppShell = ({
   applyFlags(user);
 
   return (
-    <div className="flex min-h-screen w-full flex-col bg-muted/40">
+    <div className="AppShell flex min-h-screen w-full flex-col">
       {loading && <Loader />}
-      <Sidebar />
-      <div className="flex flex-col min-h-screen sm:pl-14">
+      <Sidebar collapsed={isSidebarCollapsed} onToggle={setSidebarCollapsed} />
+      <div
+        className={`flex flex-col min-h-screen ${isSidebarCollapsed ? "sm:pl-14" : "sm:pl-44"}`}
+      >
         {(header ?? true) && <Header id={id} name={name} menuItem={menuItem} />}
         <main className="grow flex flex-col justify-start">{children}</main>
       </div>

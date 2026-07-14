@@ -2,6 +2,8 @@ import Stripe from "stripe";
 import { prisma } from "./db";
 import logger from "@/lib/logger";
 import { getUserById } from "@/lib/user";
+import { nonFalse } from "@/lib/utils";
+import { Tenant } from "@/types";
 
 export const getPlanLimits = (_planId?: string | null) => {
   return {};
@@ -13,7 +15,7 @@ export const getStripe = () => {
   }
 
   return new Stripe(process.env.STRIPE_API_KEY, {
-    apiVersion: "2024-04-10",
+    apiVersion: "2025-10-29.clover",
     typescript: true
   });
 };
@@ -57,6 +59,36 @@ export async function getTenantSubscription(tenantId: string) {
     planId: user.planId || undefined
   };
 }
+
+/**
+ * Map a Stripe subscription to the tenant's persisted subscription fields.
+ *
+ * As of Stripe API version 2025-10-29, the billing period lives on the
+ * subscription item rather than the subscription, so the current period end is
+ * read from the first (main) line item.
+ */
+export const fromSubscription = (subscription: Stripe.Subscription) => {
+  const mainPrice = subscription.items.data[0];
+
+  return {
+    stripeSubscriptionId: subscription.id,
+    stripeCustomerId: subscription.customer as string,
+    stripePriceId: mainPrice.price.id,
+    stripeCurrentPeriodEnd: new Date(mainPrice.current_period_end * 1000),
+    stripeCancelAtPeriodEnd: subscription.cancel_at_period_end,
+    stripeCancelAt: subscription.canceled_at
+      ? new Date(subscription.canceled_at * 1000)
+      : null,
+    stripeCancelReason:
+      [
+        subscription.cancellation_details?.reason,
+        subscription.cancellation_details?.feedback,
+        subscription.cancellation_details?.comment
+      ]
+        .filter(nonFalse)
+        .join(":") || null
+  } satisfies Partial<Tenant>;
+};
 
 /**
  * Update the subscription for a tenant after a successful payment
@@ -130,10 +162,7 @@ export const updateSubscription = async (sessionId: string) => {
       },
       data: {
         planId: subscription.items.data[0].price.lookup_key,
-        stripeSubscriptionId: subscription.id,
-        stripeCustomerId: subscription.customer as string,
-        stripePriceId: subscription.items.data[0].price.id,
-        stripeCurrentPeriodEnd: new Date(subscription.current_period_end * 1000),
+        ...fromSubscription(subscription),
         stripeUserId: userId,
         ...getPlanLimits(subscription.items.data[0].price.lookup_key)
       }

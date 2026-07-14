@@ -1,15 +1,19 @@
-import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import logger from "@/lib/logger";
-import { getPlanLimits, getStripe, getTenantSubscription } from "@/lib/stripe";
+import { getServerSession } from "@/lib/middleware";
+import {
+  fromSubscription,
+  getPlanLimits,
+  getStripe,
+  getTenantSubscription
+} from "@/lib/stripe";
 import { getUserById } from "@/lib/user";
 import { NextApiRequest, NextApiResponse } from "next";
-import { getServerSession } from "next-auth";
 
 export type SubscriptionResponse = Awaited<ReturnType<typeof getTenantSubscription>>;
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
-  const session = await getServerSession(req, res, authOptions(req));
+  const session = await getServerSession(req, res);
   if (!session?.user) {
     return res.status(401).json({ error: "Unauthorized" });
   }
@@ -57,10 +61,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           id: user.tenantId
         },
         data: {
-          stripeCustomerId: customer.id,
-          stripeSubscriptionId: subscription.id,
-          stripePriceId: subscription.items.data[0].price.id,
-          stripeCurrentPeriodEnd: new Date(subscription.current_period_end * 1000),
+          ...fromSubscription(subscription),
           ...getPlanLimits(sub.planId)
         }
       });

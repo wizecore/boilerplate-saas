@@ -1,13 +1,12 @@
-import { authOptions } from "@/lib/auth";
 import logger from "@/lib/logger";
 import { logQueue, LogQueueEvent } from "@/lib/logQueue";
+import { getServerSession } from "@/lib/middleware";
 import { formatMessage } from "@/lib/utils";
 import { NextApiRequest, NextApiResponse } from "next";
-import { getServerSession } from "next-auth";
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   try {
-    const session = await getServerSession(req, res, authOptions(req));
+    const session = await getServerSession(req, res);
     if (!session) {
       res.status(401).json({ error: "Unauthorized" });
       return;

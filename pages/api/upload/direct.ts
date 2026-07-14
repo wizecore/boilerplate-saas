@@ -2,8 +2,7 @@ import type { NextApiRequest, NextApiResponse } from "next";
 import logger from "@/lib/logger";
 import { Upload } from "@aws-sdk/lib-storage";
 import mimeTypes from "mime-types";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import { getServerSession } from "@/lib/middleware";
 import { getUserById } from "@/lib/user";
 import { getCompute } from "@/lib/compute";
 import { formatMessage, str } from "@/lib/utils";
@@ -29,7 +28,7 @@ const readBody = (req: NextApiRequest): Promise<Buffer> => {
 };
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
-  const session = await getServerSession(req, res, authOptions(req));
+  const session = await getServerSession(req, res);
   if (!session?.user) {
     return res.status(404).json({ error: "Unauthorized" });
   }

@@ -4,7 +4,7 @@ import nodemailer from "nodemailer";
 import path from "path";
 import fs from "node:fs";
 import { ReactElement } from "react";
-import { nonFalse, pwgen } from "@/lib/utils";
+import { absoluteUrl, nonFalse, pwgen } from "@/lib/utils";
 
 export const sendMail = async (
   to: string | string[],
@@ -30,7 +30,17 @@ export const sendMail = async (
             pass: process.env.SMTP_PASS
           }
         }
-      : {})
+      : {}),
+    // Amazon SES: attach a configuration set / source ARN when configured.
+    // These headers are ignored by other SMTP providers.
+    headers: {
+      ...(process.env.SMTP_SES_CONFIGURATION_SET
+        ? { "X-SES-CONFIGURATION-SET": process.env.SMTP_SES_CONFIGURATION_SET }
+        : {}),
+      ...(process.env.SMTP_SES_FROM_ARN
+        ? { "X-SES-FROM-ARN": process.env.SMTP_SES_FROM_ARN }
+        : {})
+    }
   });
 
   const cid = `icon-${pwgen(16)}`;
@@ -69,11 +79,16 @@ export const sendMail = async (
   logger.info("Rendered mail in", Date.now() - now, "ms");
   const from = process.env.NEXT_PUBLIC_MAIL_FROM ?? "hello@example.com";
 
+  // Outside production, prefix the subject with the host so it is obvious
+  // the email came from a dev/preview environment.
+  const host =
+    process.env.NODE_ENV === "production" ? undefined : new URL(absoluteUrl()).hostname;
+
   const result = await mailer.sendMail({
     from: options?.from ?? (process.env.NEXT_PUBLIC_APP_NAME ?? "Example") + " <" + from + ">",
     to,
     // Add development host name to the subject
-    subject,
+    subject: host ? `[${host}] ${subject}` : subject,
     html: str,
     text:
       options?.plainText === true && typeof html === "object"

@@ -193,14 +193,22 @@ export const getCache = (): ICache => {
   }
 };
 
-// Implementation of fetch with caching
+/**
+ * Fetch with caching, only activates if cacheMs is set and skipCache is false.
+ * Invokes okstatus on the response, so it will throw an error if the response is not ok.
+ */
 export const fetchCached = async <T>(
   input: string,
   init: (RequestInit & { cacheMs?: number }) | undefined,
-  parse: (response: Response) => Promise<T>
+  parse?: (response: Response) => Promise<T>,
+  /** Skip caching */
+  skipCache = false,
+  /** Extra hash material to add to the cache key */
+  keyMaterial?: string
 ): Promise<T> => {
-  if (init?.cacheMs !== 0) {
-    const cached = await getCache().get("fetch-" + createHash(input));
+  const key = "fetch-" + createHash(input) + (keyMaterial ? "-" + keyMaterial : "");
+  if (init?.cacheMs !== 0 && !skipCache) {
+    const cached = await getCache().get(key);
     if (cached) {
       return cached as T;
     }
@@ -208,15 +216,11 @@ export const fetchCached = async <T>(
 
   logger.info("Fetching", input);
   const response = await fetch(input, init).then(okstatus);
-  const value = await parse(response);
+  const value: T = parse ? await parse(response) : await response.json();
 
   // Update cache anyway, even if we skip caching
   if (value !== null && value !== undefined) {
-    await getCache().set(
-      "fetch-" + createHash(input),
-      value,
-      init?.cacheMs ?? CacheUtil.timeoutMs
-    );
+    await getCache().set(key, value, init?.cacheMs ?? CacheUtil.timeoutMs);
   }
 
   return value;

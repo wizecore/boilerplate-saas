@@ -2,15 +2,22 @@ import { getCompute } from "@/lib/compute";
 import { Limit } from "@/lib/limit";
 import logger from "@/lib/logger";
 import { TaskTypes } from "@/types";
+import { worker } from "../worker";
 
+/** Cleanup and maintenance tick */
 export const tick = async () => {
+  // DO NOT REMOVE THIS, it's used to ensure that the worker is running.
+  await worker.isRunning();
   const { prisma, queue } = await getCompute();
 
   // Once per minute
   const limit = await Limit.minute("queue-tick", 1);
   try {
     const limitResult = await limit(1);
-    if (limitResult.granted > 0) {
+    // Limit.minute grants 1 to the first caller within the minute; only the
+    // caller that wins that slot should run the sweep (mirrors the guard in
+    // periodicTask). Bail out otherwise.
+    if (!limitResult.granted) {
       return;
     }
 
@@ -28,7 +35,7 @@ export const tick = async () => {
 
       for (const task of failed) {
         logger.info(`Requeueing failed periodic task ${task.id}`);
-        await queue(task, 60000, true);
+        await queue(task, 60000);
       }
     }
 
@@ -55,7 +62,7 @@ export const tick = async () => {
           "tenantId",
           task.tenantId
         );
-        await queue(task, 60000, true);
+        await queue(task, 60000);
       }
     }
   } catch (error) {

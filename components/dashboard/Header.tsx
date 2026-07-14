@@ -1,6 +1,8 @@
 import Link from "next/link";
-import { PanelLeft, Settings, User } from "lucide-react";
+import { PanelLeft, Settings } from "lucide-react";
 
+import { AccountMenu } from "@/components/dashboard/AccountMenu";
+import { dashboardMenu } from "@/components/dashboard/menu";
 import {
   Breadcrumb,
   BreadcrumbItem,
@@ -10,20 +12,10 @@ import {
   BreadcrumbSeparator
 } from "@/components/ui/breadcrumb";
 import { Button } from "@/components/ui/button";
-import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger
-} from "@/components/ui/dropdown-menu";
-import { dashboardMenu } from "@/components/dashboard/menu";
-import { useSession } from "next-auth/react";
+import { Sheet, SheetContent, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
+import { useSession } from "@/components/useSession";
+import { Logo } from "@/components/Branding";
 import { NavItem } from "@/types";
-import { useTheme } from "next-themes";
-import { Logo } from "@/components/landing/Navbar";
 
 export function Header({
   id,
@@ -35,12 +27,12 @@ export function Header({
   menuItem?: Pick<NavItem, "title" | "href">;
 }) {
   const { data: session } = useSession();
-  const { setTheme } = useTheme();
 
   return (
-    <header className="sticky top-0 z-30 flex justify-between h-14 items-center gap-4 border-b bg-background px-4">
+    <header className="sticky top-0 z-30 flex justify-between h-14 items-center gap-4 border-b border-sidebar-border bg-sidebar px-4">
       <div className="flex items-center gap-4">
         <Sheet>
+          <SheetTitle className="sr-only">Menu</SheetTitle>
           <SheetTrigger asChild>
             <Button size="icon" variant="outline" className="sm:hidden">
               <PanelLeft className="h-5 w-5" />
@@ -48,19 +40,19 @@ export function Header({
             </Button>
           </SheetTrigger>
           <SheetContent
+            aria-describedby="menu"
             side="left"
-            className="sm:max-w-xs border flex flex-col h-full justify-between"
+            className="sm:max-w-xs p-4 border flex flex-col h-full justify-between"
           >
             <nav className="grid gap-6 text-lg font-medium">
               <Link
                 href="/"
-                className="group flex h-10 w-10 shrink-0 items-center justify-center gap-2 rounded-full dark:bg-primary/20 bg-primary/20 text-lg font-semibold text-primary-foreground md:text-base"
+                className="group flex h-10 shrink-0 items-center justify-start gap-2 rounded-full text-lg font-semibold text-primary-foreground md:text-base"
               >
                 <Logo />
-                <span className="sr-only">{process.env.NEXT_PUBLIC_APP_NAME}</span>
               </Link>
 
-              {Object.entries(dashboardMenu).map(([_name, item]) => (
+              {Object.values(dashboardMenu).map(item => (
                 <Link
                   key={item.title}
                   href={item.href}
@@ -72,7 +64,7 @@ export function Header({
               ))}
             </nav>
 
-            <nav className=" grid gap-6 text-lg font-medium">
+            <nav className="grid gap-6 text-lg font-medium">
               <Link
                 href="/settings"
                 className="flex items-center gap-4 px-2.5 text-muted-foreground hover:text-foreground"
@@ -90,6 +82,7 @@ export function Header({
                 <Link href="/dashboard">Dashboard</Link>
               </BreadcrumbLink>
             </BreadcrumbItem>
+
             {menuItem && (
               <>
                 <BreadcrumbSeparator className="hidden md:block" />
@@ -100,11 +93,14 @@ export function Header({
                 </BreadcrumbItem>
               </>
             )}
+
             {id && (
               <>
                 <BreadcrumbSeparator />
                 <BreadcrumbItem>
-                  <BreadcrumbPage>{name ?? id}</BreadcrumbPage>
+                  <BreadcrumbPage className="line-clamp-1 break-all">
+                    {name ?? id}
+                  </BreadcrumbPage>
                 </BreadcrumbItem>
               </>
             )}
@@ -112,70 +108,11 @@ export function Header({
         </Breadcrumb>
       </div>
       <div className="flex-1 grow-0">
-        <DropdownMenu modal={false}>
-          <DropdownMenuTrigger asChild>
-            <Button
-              variant="outline"
-              size="icon"
-              className="overflow-hidden rounded-full h-8 w-8"
-            >
-              {session?.user?.image ? (
-                <img
-                  src={session.user.image}
-                  alt="Profile"
-                  className="inset-0 object-cover h-8 w-8 rounded-full"
-                />
-              ) : (
-                <User />
-              )}
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end">
-            <DropdownMenuLabel>{session?.user?.email}</DropdownMenuLabel>
-            <DropdownMenuSeparator />
-            <DropdownMenuLabel>Theme</DropdownMenuLabel>
-            <DropdownMenuItem asChild>
-              <Link
-                href="#"
-                onClick={e => {
-                  e.preventDefault();
-                  setTheme("dark");
-                }}
-              >
-                Dark
-              </Link>
-            </DropdownMenuItem>
-            <DropdownMenuItem asChild>
-              <Link
-                href="#"
-                onClick={e => {
-                  e.preventDefault();
-                  setTheme("light");
-                }}
-              >
-                Light
-              </Link>
-            </DropdownMenuItem>
-            <DropdownMenuSeparator />
-            <DropdownMenuItem asChild>
-              <Link href="mailto:ruslan@wizecore.com">Support</Link>
-            </DropdownMenuItem>{" "}
-            <DropdownMenuSeparator />
-            <DropdownMenuItem asChild>
-              <Link href="/">Home</Link>
-            </DropdownMenuItem>
-            <DropdownMenuItem asChild>
-              <Link href="/pricing">Upgrade</Link>
-            </DropdownMenuItem>
-            <DropdownMenuItem asChild>
-              <Link href="/settings/general">Settings</Link>
-            </DropdownMenuItem>
-            <DropdownMenuSeparator />
-            <DropdownMenuItem asChild>
-              <Link href="/auth/signOut">Logout</Link>
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
+        <AccountMenu
+          name={session?.user?.name}
+          email={session?.user?.email}
+          image={session?.user?.image}
+        />
       </div>
     </header>
   );

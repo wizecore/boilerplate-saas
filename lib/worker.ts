@@ -3,6 +3,8 @@ import { queue, connection } from "./queue";
 import logger from "@/lib/logger";
 import { Task, TaskType } from "@/types";
 import { getCompute } from "@/lib/compute";
+import { periodicTask, getNextDelay } from "@/lib/queue/periodicTask";
+import { Prisma } from "@/generated/prisma/client";
 
 /** Remove previous instances of workers */
 const context = globalThis as { __workers?: WeakRef<Worker>[] };
@@ -50,7 +52,7 @@ const processor = async (
   token?: string
 ) => {
   logger.verbose(worker.opts.name, "Got job", job.name, "token", token);
-  const { prisma } = await getCompute();
+  const { prisma, queue: enqueue } = await getCompute();
   const task = await prisma.task.findUniqueOrThrow({
     where: {
       id: job.data.id
@@ -73,7 +75,11 @@ const processor = async (
   });
 
   try {
-    await new Promise(resolve => setTimeout(resolve, 1000));
+    // Dispatch on task type. Periodic tasks run their real handler; other
+    // types (e.g. one-off tasks) simply complete.
+    const result: Prisma.InputJsonValue = task.type.startsWith("period:")
+      ? ((await periodicTask(task)) as Prisma.InputJsonValue)
+      : {};
 
     await prisma.task.update({
       where: {
@@ -81,9 +87,18 @@ const processor = async (
       },
       data: {
         status: "completed",
-        executedAt: new Date()
+        executedAt: new Date(),
+        result
       }
     });
+
+    // Re-arm recurring tasks for their next interval. enqueue() resets the row
+    // back to "queued" and stamps the next nextExecuteAt.
+    if (task.interval) {
+      const delay = getNextDelay(task.nextExecuteAt, task.interval);
+      logger.verbose(worker.opts.name, "Rescheduling", task.type, task.id, "in", delay, "ms");
+      await enqueue(task, delay);
+    }
   } catch (err) {
     await prisma.task.update({
       where: {
