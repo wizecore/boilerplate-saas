@@ -1,6 +1,5 @@
 "use strict";
 
-// eslint-disable-next-line @typescript-eslint/no-require-imports
 const path = require("path");
 
 /** @type {import('eslint').Rule.RuleModule} */
@@ -124,6 +123,8 @@ const ruleNamingConvention = {
 };
 
 module.exports = {
-  "disallow-prisma-client-import": rulePrismaClientImport,
-  "file-naming-convention": ruleNamingConvention
+  rules: {
+    "disallow-prisma-client-import": rulePrismaClientImport,
+    "file-naming-convention": ruleNamingConvention
+  }
 };

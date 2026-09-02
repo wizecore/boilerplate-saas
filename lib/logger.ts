@@ -1,5 +1,4 @@
 /* eslint-disable no-console */
-/* eslint-disable @typescript-eslint/no-empty-function */
 
 export interface MinimalLogger {
   info: (...args: unknown[]) => void;

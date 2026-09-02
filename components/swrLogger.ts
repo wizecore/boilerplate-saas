@@ -9,9 +9,8 @@ export const swrLogger: Middleware = <Data>(useSWRNext: SWRHook) => {
     if (fetcher) {
       nextFetcher = (...args: unknown[]) => {
         const started = Date.now();
-        // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+
         const label =
-          // eslint-disable-next-line @typescript-eslint/no-unsafe-call
           typeof key === "function" ? key() : Array.isArray(key) ? key.join(", ") : key;
         logger.info("SWR -->", label);
         const response = fetcher(...args);

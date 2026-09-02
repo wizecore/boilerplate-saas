@@ -85,7 +85,6 @@ export function SelectIdValue<T extends { id: K }, K extends string>({
   );
 
   useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect
     setSelected(values?.find(v => v.id === value));
   }, [value, values]);
 

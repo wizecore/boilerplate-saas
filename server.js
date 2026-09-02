@@ -2,10 +2,6 @@
  * Based on https://nextjs.org/docs/pages/building-your-application/configuring/custom-server
  */
 
-/* eslint-disable @typescript-eslint/no-require-imports */
-/* eslint-disable no-console */
-/* eslint-disable @typescript-eslint/no-empty-function */
-
 const { createServer } = require("node:http");
 const { parse } = require("node:url");
 const createNextServer = require("next");

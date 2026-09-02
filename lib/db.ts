@@ -1,14 +1,13 @@
 import logger from "@/lib/logger";
 // eslint-disable-next-line local-rules/disallow-prisma-client-import
 import { PrismaClient } from "@prisma/client";
-import { fieldEncryptionExtension } from "prisma-field-encryption";
+import { PrismaPg } from "@prisma/adapter-pg";
 
 const LOG_THRESHOLD = process.env.PRISMA_LOG_THRESHOLD
   ? parseInt(process.env.PRISMA_LOG_THRESHOLD, 10)
   : 100;
 
 declare global {
-  // eslint-disable-next-line no-var
   var cachedPrisma: PrismaClient;
 }
 
@@ -16,7 +15,11 @@ export let prisma: PrismaClient;
 
 // https://github.com/random42/prisma-extension-log/
 export const createPrisma = (): PrismaClient => {
+  // Prisma 7 connects through a driver adapter instead of a datasource URL in
+  // the schema. The connection string now comes from the adapter.
+  const adapter = new PrismaPg({ connectionString: process.env.DATABASE_URL });
   const prisma = new PrismaClient({
+    adapter,
     log: logger.isVerbose ? [{ emit: "event", level: "query" }] : ["info"]
   });
 
@@ -25,15 +28,6 @@ export const createPrisma = (): PrismaClient => {
       logger.info(`Query ${e.query} took ${e.duration}ms`);
     }
   });
-
-  const encryptionKey = process.env.DATABASE_ENCRYPTION_KEY;
-  if (encryptionKey) {
-    return prisma.$extends(
-      fieldEncryptionExtension({
-        encryptionKey
-      })
-    ) as unknown as PrismaClient;
-  }
 
   return prisma;
 };

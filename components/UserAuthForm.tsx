@@ -59,7 +59,6 @@ export function UserAuthForm({ className, ...props }: React.HTMLAttributes<HTMLD
         return (e as { type?: string }).type === "back_forward";
       });
       if (found) {
-        // eslint-disable-next-line react-hooks/set-state-in-effect
         setLoading(false);
       }
     }

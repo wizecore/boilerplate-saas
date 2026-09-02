@@ -16,15 +16,7 @@ declare module "next" {
   interface NextApiRequest {
     url: string;
     method:
-      | "GET"
-      | "POST"
-      | "PUT"
-      | "DELETE"
-      | "PATCH"
-      | "OPTIONS"
-      | "HEAD"
-      | "CONNECT"
-      | "TRACE";
+      "GET" | "POST" | "PUT" | "DELETE" | "PATCH" | "OPTIONS" | "HEAD" | "CONNECT" | "TRACE";
   }
 }
 
@@ -87,12 +79,7 @@ export const TaskStatuses: NonEmptyArray<TaskStatus> = [
 ];
 export const TaskStatusCheck = z.enum(TaskStatuses);
 export type TaskType =
-  | "tick"
-  | "period:minute"
-  | "period:hour"
-  | "period:day"
-  | "period:week"
-  | "period:month";
+  "tick" | "period:minute" | "period:hour" | "period:day" | "period:week" | "period:month";
 
 export const TaskTypes: NonEmptyArray<TaskType> = [
   "period:minute",
@@ -135,7 +122,6 @@ export type JSONSafe<T> = {
 };
 
 declare global {
-  // eslint-disable-next-line @typescript-eslint/no-namespace
   namespace PrismaJson {
     type PrismaTaskType = TaskType;
     type PrismaTaskStatus = TaskStatus;

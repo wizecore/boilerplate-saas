@@ -46,8 +46,8 @@ export const plans = [
       "Advanced reports",
       "Slack & email support",
       "30-day data retention",
-      "Competitor analysis",
-      "Custom category tracking"
+      "Team collaboration",
+      "Custom integrations"
     ],
     featured: true
   },
@@ -63,7 +63,7 @@ export const plans = [
       "Custom reporting",
       "24/7 priority support",
       "90-day data retention",
-      "Advanced competitor analysis",
+      "SSO & advanced security",
       "API access",
       "Custom integrations",
       "Dedicated account manager"
@@ -74,68 +74,127 @@ export const plans = [
 
 export const Pricing = () => {
   return (
-    <div className="py-24 sm:py-32" id="pricing">
+    <div className="relative py-24 sm:py-32 overflow-hidden bg-background" id="pricing">
+      {/* Background decoration */}
+      <div className="absolute inset-0 -z-10">
+        <div className="absolute top-0 right-1/4 w-[600px] h-[600px] bg-primary/5 rounded-full blur-3xl" />
+      </div>
+
       <div className="mx-auto max-w-7xl px-6 lg:px-8">
-        <div className="mx-auto max-w-2xl sm:text-center">
-          <h2 className="text-base font-semibold leading-7 text-primary">Pricing</h2>
-          <p className="mt-2 text-4xl font-bold tracking-tight sm:text-5xl">
-            Choose the right plan for your needs
-          </p>
-          <p className="mt-6 text-lg leading-8 text-muted-foreground">
+        {/* Header */}
+        <div className="mx-auto max-w-2xl text-center">
+          <h2 className="text-4xl font-bold tracking-tight sm:text-5xl mb-4">
+            Simple,{" "}
+            <span className="bg-gradient-to-r from-primary to-primary/60 bg-clip-text text-transparent">
+              transparent pricing
+            </span>
+          </h2>
+          <p className="text-lg leading-8 text-muted-foreground">
             Get started with our free trial. No credit card required. Upgrade anytime.
           </p>
         </div>
-        <div className="mx-auto mt-16 grid max-w-lg grid-cols-1 items-center gap-y-6 gap-x-4 sm:mt-20 sm:gap-y-0 lg:max-w-4xl lg:grid-cols-3">
-          {plans.map(tier => (
+
+        {/* Pricing cards */}
+        <div className="mx-auto mt-16 grid max-w-lg grid-cols-1 items-start gap-8 sm:mt-20 lg:max-w-none lg:grid-cols-3">
+          {plans.map((tier, index) => (
             <div
               key={tier.id}
-              className={`relative flex flex-col rounded-3xl p-8 ring-1 ring-gray-200 ${
-                tier.featured ? "bg-primary/5" : ""
+              className={`relative flex flex-col rounded-2xl p-8 transition-all duration-300 ${
+                tier.featured
+                  ? "bg-primary/5 ring-2 ring-primary shadow-2xl scale-105 lg:scale-110"
+                  : "bg-card/50 ring-1 ring-border hover:ring-primary/40 hover:shadow-lg"
               }`}
+              style={{
+                animationDelay: `${index * 150}ms`,
+                animation: "fadeInUp 0.6s ease-out forwards",
+                opacity: 0
+              }}
             >
+              {/* Popular badge */}
               {tier.featured && (
-                <div className="absolute -top-3 left-1/2 -translate-x-1/2">
-                  <span className="inline-flex rounded-full bg-primary px-4 py-1 text-sm font-semibold text-primary-foreground">
+                <div className="absolute -top-4 left-1/2 -translate-x-1/2">
+                  <span className="inline-flex items-center gap-1 rounded-full bg-primary px-4 py-1.5 text-sm font-semibold text-primary-foreground shadow-lg">
                     Most popular
                   </span>
                 </div>
               )}
+
+              {/* Plan name */}
               <div className="flex-1">
-                <h3 className="text-xl font-semibold leading-8">{tier.name}</h3>
-                <p className="mt-4 text-sm leading-6 text-muted-foreground">
+                <h3 className="text-2xl font-bold mb-2">{tier.name}</h3>
+                <p className="text-sm leading-6 text-muted-foreground mb-6">
                   {tier.description}
                 </p>
-                <p className="mt-6 flex items-baseline gap-x-1">
-                  <span className="text-4xl font-bold tracking-tight">
-                    {tier.price.monthly}
-                  </span>
-                  {tier.price.monthly !== "Custom" && (
-                    <span className="text-sm font-semibold leading-6">/month</span>
-                  )}
-                </p>
-                <ul role="list" className="mt-8 space-y-3 text-sm leading-6">
-                  {tier.features.map(feature => (
-                    <li key={feature} className="flex gap-x-3">
-                      <Check className="h-6 w-5 flex-none text-primary" aria-hidden="true" />
-                      {feature}
-                    </li>
-                  ))}
-                </ul>
+
+                {/* Price */}
+                <div className="mb-8">
+                  <div className="flex items-baseline gap-x-2">
+                    <span className="text-5xl font-bold tracking-tight">
+                      {tier.price.monthly}
+                    </span>
+                    {tier.price.monthly !== "Custom" && (
+                      <span className="text-lg font-semibold text-muted-foreground">
+                        /month
+                      </span>
+                    )}
+                  </div>
+                </div>
+
+                {/* CTA button */}
+                <Button
+                  asChild
+                  size="lg"
+                  variant={tier.featured ? "default" : "secondary"}
+                  className="w-full mb-8 rounded-xl font-semibold"
+                >
+                  <Link href={tier.href}>
+                    {tier.price.monthly === "Custom" ? "Contact sales" : "Get started"}
+                  </Link>
+                </Button>
+
+                {/* Features list */}
+                <div className="space-y-4">
+                  <p className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">
+                    What&apos;s included
+                  </p>
+                  <ul role="list" className="space-y-3">
+                    {tier.features.map(feature => (
+                      <li key={feature} className="flex gap-x-3 items-start">
+                        <div className="flex-shrink-0 h-6 w-6 rounded-full bg-primary/10 flex items-center justify-center">
+                          <Check className="h-4 w-4 text-primary" aria-hidden="true" />
+                        </div>
+                        <span className="text-sm leading-6 text-muted-foreground">
+                          {feature}
+                        </span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
               </div>
-              <Button
-                asChild
-                className={`mt-8 w-full ${
-                  tier.featured ? "bg-primary text-primary-foreground" : ""
-                }`}
-              >
-                <Link href={tier.href}>
-                  {tier.price.monthly === "Custom" ? "Contact sales" : "Get started"}
-                </Link>
-              </Button>
             </div>
           ))}
         </div>
+
+        {/* Trust message */}
+        <div className="mt-16 text-center">
+          <p className="text-sm text-muted-foreground">
+            All plans include a 14-day free trial. Cancel anytime, no questions asked.
+          </p>
+        </div>
       </div>
+
+      <style jsx>{`
+        @keyframes fadeInUp {
+          from {
+            opacity: 0;
+            transform: translateY(20px);
+          }
+          to {
+            opacity: 1;
+            transform: translateY(0);
+          }
+        }
+      `}</style>
     </div>
   );
 };
